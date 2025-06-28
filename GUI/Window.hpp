@@ -50,7 +50,7 @@ declare_exception(window_hotkey_duplication);
 
 class Window;
 
-class EventData : public w32GUIObject, public w32AbstractEventObject final {
+class EventData final : public w32GUIObject, public w32AbstractEvent {
 public:
 	EventData() {
 		hwnd = 0;
