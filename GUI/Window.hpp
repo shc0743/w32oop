@@ -401,6 +401,9 @@ public:
 	// 主消息循环。**必须**使用此函数，而不是自定义的消息循环，
 	// 因为此函数将处理一些内部细节
 	static int run();
+	// 为对话框窗口而设计的 run 函数。传入对话框实例，以实现
+	// 模态框效果。
+	static int run(HWND dialog);
 
 protected:
 	virtual void onCreated();

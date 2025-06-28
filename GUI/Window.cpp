@@ -545,26 +545,26 @@ HOOKPROC Window::make_hHook_proc(MyHookProc pfn, long long userdata) {
 		0x53,                               // push rbx
 		0x56,                               // push rsi
 		0x57,                               // push rdi
-		0x55,                               // push rbp
-		0x48, 0x83, 0xEC, 0x28,             // sub rsp, 28h (对齐栈)
-		// 保存参数（注意：lParam 已经在 R8 中！）
-		0x48, 0x89, 0xCB,                   // mov rbx, rcx   ; 保存 nCode
-		0x48, 0x89, 0xD6,                   // mov rsi, rdx   ; 保存 wParam
-		//; lParam 已在 R8
-		// 加载函数指针和用户数据
-		0x48, 0xB8, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, // mov rax, [func_ptr]
-		0x49, 0xB9, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, // mov r9, [userdata]
-		// 设置调用参数
-		0x48, 0x89, 0xD9,                   // mov rcx, rbx   ; 恢复 nCode
-		0x48, 0x89, 0xF2,                   // mov rdx, rsi   ; 恢复 wParam
-		0xFF, 0xD0,                         // call rax
-		// 恢复寄存器
-		0x48, 0x83, 0xC4, 0x28,             // add rsp, 28h
-		0x5D,                               // pop rbp
-		0x5F,                               // pop rdi
-		0x5E,                               // pop rsi
-		0x5B,                               // pop rbx
-		0xC3                                // ret
+			0x55,                               // push rbp
+			0x48, 0x83, 0xEC, 0x28,             // sub rsp, 28h (对齐栈)
+			// 保存参数（注意：lParam 已经在 R8 中！）
+			0x48, 0x89, 0xCB,                   // mov rbx, rcx   ; 保存 nCode
+			0x48, 0x89, 0xD6,                   // mov rsi, rdx   ; 保存 wParam
+			//; lParam 已在 R8
+			// 加载函数指针和用户数据
+			0x48, 0xB8, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, // mov rax, [func_ptr]
+			0x49, 0xB9, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, // mov r9, [userdata]
+			// 设置调用参数
+			0x48, 0x89, 0xD9,                   // mov rcx, rbx   ; 恢复 nCode
+			0x48, 0x89, 0xF2,                   // mov rdx, rsi   ; 恢复 wParam
+			0xFF, 0xD0,                         // call rax
+			// 恢复寄存器
+			0x48, 0x83, 0xC4, 0x28,             // add rsp, 28h
+			0x5D,                               // pop rbp
+			0x5F,                               // pop rdi
+			0x5E,                               // pop rsi
+			0x5B,                               // pop rbx
+			0xC3                                // ret
 	};
 
 	size_t written = 0;
@@ -583,14 +583,17 @@ HOOKPROC Window::make_hHook_proc(MyHookProc pfn, long long userdata) {
 #error "Platform is not supported; the library will not work well!"
 #endif
 
-	DWORD old_page_protection = 0;
-	if (!VirtualProtect(memory, sizeof(payload), PAGE_EXECUTE_READ, &old_page_protection)) // 防止写入
-		fail("Failed to change memory protection");
+DWORD old_page_protection = 0;
+if (!VirtualProtect(memory, sizeof(payload), PAGE_EXECUTE_READ, &old_page_protection)) // 防止写入
+fail("Failed to change memory protection");
 
-	return reinterpret_cast<HOOKPROC>(memory);
+return reinterpret_cast<HOOKPROC>(memory);
 }
 
 int Window::run() {
+	return run(NULL);
+}
+int Window::run(HWND dialog) {
 	MSG msg{}; auto lpMsg = &msg;
 	HHOOK hHook = NULL;
 	HOOKPROC myproc = nullptr;
@@ -601,7 +604,7 @@ int Window::run() {
 		if (myproc) VirtualFree(myproc, 0, MEM_RELEASE);
 		if (myproc_data) delete myproc_data;
 		if (useGlobalHook) --hotkey_global_count;
-	});
+		});
 	try {
 		volatile bool dialogHandling = !get_global_option(Option_DisableDialogWindowHandling);
 		volatile bool acceleratorHandling = !get_global_option(Option_DisableAcceleratorHandling);
@@ -639,7 +642,11 @@ int Window::run() {
 		} while (0);
 
 		HWND hRootWnd = NULL;
-		while (GetMessageW(lpMsg, nullptr, 0, 0)) {
+		bool bUseDlg = (dialog != NULL), bDlgExit = false;
+		while ((!bDlgExit) && GetMessageW(lpMsg, nullptr, 0, 0)) {
+			if (bUseDlg && lpMsg->message == WM_DESTROY) {
+                bDlgExit = true;
+			}
 			if (dialogHandling || acceleratorHandling) {
 				hRootWnd = GetAncestor(lpMsg->hwnd, GA_ROOT);
 				if (hRootWnd == NULL) hRootWnd = lpMsg->hwnd;
