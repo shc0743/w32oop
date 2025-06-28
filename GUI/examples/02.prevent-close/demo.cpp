@@ -1,4 +1,4 @@
-// Shows the dynamic event-handler.
+﻿// Shows the dynamic event-handler.
 
 #define UNICODE 1
 #define _UNICODE 1

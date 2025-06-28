@@ -1,4 +1,4 @@
-// compile command: cl /EHsc demo.cpp /std:c++20
+﻿// compile command: cl /EHsc demo.cpp /std:c++20
 #define UNICODE 1
 #define _UNICODE 1
 #include "../../Window.hpp"
