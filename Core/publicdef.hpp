@@ -15,6 +15,11 @@ namespace w32oop::def {
         w32AbstractEvent() = default;
         virtual ~w32AbstractEvent() = default;
     };
-    
+#ifdef NT_SUCCESS
+#undef NT_SUCCESS
+#endif
+    static constexpr inline NTSTATUS NT_SUCCESS(NTSTATUS Status) {
+        return ((NTSTATUS)(Status)) >= 0;
+    }
 }
 

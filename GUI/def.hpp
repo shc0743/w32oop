@@ -24,3 +24,45 @@ namespace w32oop::def {
         virtual ~w32Window() = default;
     };
 }
+
+namespace w32oop::exceptions {
+    w32oop_declare_exception_class(ui);
+    w32oop_declare_exception_class_from(window, ui_exception);
+    w32oop_declare_exception_class_from(window_not_initialized, window_exception);
+    w32oop_declare_exception_class_from(window_already_initialized, window_exception);
+    w32oop_declare_exception_class_from(window_illegal_state, window_exception);
+    w32oop_declare_exception_class_from(window_class_registration_failure, window_exception);
+    w32oop_declare_exception_class_from(window_creation_failure, window_exception);
+    w32oop_declare_exception_class_from(window_has_no_parent, window_exception);
+    w32oop_declare_exception_class_from(window_dangerous_thread_operation, window_exception);
+    w32oop_declare_exception_class_from(window_hotkey_duplication, window_exception);
+}
+
+#include <CommCtrl.h>
+
+namespace w32oop::ui {
+    constexpr ULONGLONG WINDOW_NOTIFICATION_CODES = WM_USER + 0x1000FFFFFFFFULL;
+    constexpr ULONGLONG WM_MENU_CHECKED = WM_USER + WM_MENUCOMMAND + 0x2000FFFFFFFFULL;
+
+#ifdef ICC_ALL_CLASSES
+#undef ICC_ALL_CLASSES
+#endif
+    constexpr DWORD ICC_ALL_CLASSES =
+        ICC_LISTVIEW_CLASSES |
+        ICC_TREEVIEW_CLASSES |
+        ICC_BAR_CLASSES |
+        ICC_TAB_CLASSES |
+        ICC_UPDOWN_CLASS |
+        ICC_PROGRESS_CLASS |
+        ICC_HOTKEY_CLASS |
+        ICC_ANIMATE_CLASS |
+        ICC_WIN95_CLASSES |
+        ICC_DATE_CLASSES |
+        ICC_USEREX_CLASSES |
+        ICC_COOL_CLASSES |
+        ICC_INTERNET_CLASSES |
+        ICC_PAGESCROLLER_CLASS |
+        ICC_NATIVEFNTCTL_CLASS |
+        ICC_STANDARD_CLASSES |
+        ICC_LINK_CLASS;
+}

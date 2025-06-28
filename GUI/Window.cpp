@@ -1,21 +1,9 @@
 ﻿#include "Window.hpp"
+#include "../Utility/StringUtil/converts.hpp"
 using namespace w32oop;
 using namespace w32oop::util;
 using namespace w32oop::ui;
-wstring w32oop::util::s2ws(const string str) {
-	wstring result;
-	size_t len = MultiByteToWideChar(CP_ACP, 0, str.c_str(),
-		(int)(str.size()), NULL, 0);
-	if (len < 0) return result;
-	wchar_t* buffer = new wchar_t[len + 1];
-	if (buffer == NULL) return result;
-	MultiByteToWideChar(CP_ACP, 0, str.c_str(), (int)(str.size()),
-		buffer, (int)len);
-	buffer[len] = '\0';
-	result.append(buffer);
-	delete[] buffer;
-	return result;
-}
+
 static BOOL CALLBACK GetAllChildWindows__EnumChildProc(HWND hwndChild, LPARAM lParam) {
 	std::vector<HWND>* pChildHandles = reinterpret_cast<std::vector<HWND>*>(lParam);
 	pChildHandles->push_back(hwndChild);
@@ -41,7 +29,7 @@ std::atomic<unsigned long long> BaseSystemWindow::ctlid_generator;
 const wstring Window::get_class_name() const
 {
 	auto& type = typeid(*this);
-	return s2ws(
+	return w32oop::util::str::converts::str_wstr(
 		type.name() + "#(C++ Window):"s +
 #ifdef _MSVC_LANG
 		type.raw_name()

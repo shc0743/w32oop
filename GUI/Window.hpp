@@ -14,7 +14,6 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #define package namespace
 #define declare {
 #define endpackage }
-#define declare_exception(name) class name##_exception : public runtime_error { public: name##_exception(string d) : runtime_error(d) {} name##_exception() : runtime_error(( "Exception: " # name )) {} }
 #pragma endregion
 
 #ifdef _MSVC_LANG
@@ -30,23 +29,17 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #endif
 
 
-namespace w32oop::util { std::wstring s2ws(const std::string str); }
-
 package w32oop::ui declare;
 
 std::vector<HWND> GetAllChildWindows(HWND hParent);
 
+// @deprecated: this version number will no longer be updated.
 constexpr long version = 50605020;
-const char* version_string(); // V5.6 Paralogism
+// @deprecated: this version string will no longer be updated.
+const char* version_string();
+// V5.6 Paralogism
 
-declare_exception(window_not_initialized);
-declare_exception(window_already_initialized);
-declare_exception(window_illegal_state);
-declare_exception(window_class_registration_failure);
-declare_exception(window_creation_failure);
-declare_exception(window_has_no_parent);
-declare_exception(window_dangerous_thread_operation);
-declare_exception(window_hotkey_duplication);
+using namespace exceptions;
 
 class Window;
 
@@ -94,10 +87,6 @@ public:
 public:
 	friend class Window;
 };
-
-
-constexpr ULONGLONG WINDOW_NOTIFICATION_CODES = WM_USER + 0x1000FFFFFFFFULL;
-constexpr ULONGLONG WM_MENU_CHECKED = WM_USER + WM_MENUCOMMAND + 0x2000FFFFFFFFULL;
 
 
 class Window : public w32Window {
@@ -739,6 +728,6 @@ endpackage;
 #undef package
 #undef declare
 #undef endpackage
-#undef declare_exception
+#undef w32oop_declare_exception_class
 
 
