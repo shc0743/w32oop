@@ -6,16 +6,12 @@
 *.lo
 *.o
 *.obj
+*.pdb
+*.ilk
 
 # Precompiled Headers
 *.gch
 *.pch
-
-# Linker files
-*.ilk
-
-# Debugger Files
-*.pdb
 
 # Compiled Dynamic libraries
 *.so
@@ -33,9 +29,14 @@
 *.lib
 
 # Executables
-*.exe
+# *.exe
 *.out
 *.app
 
-# debug information files
-*.dwo
+# Other
+copilot-chat
+CopilotIndices
+Browse.VC.db
+out
+ipch
+*.ipch

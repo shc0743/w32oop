@@ -1,0 +1,9 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "cppStandard": "c++20"
+        }
+    ],
+    "version": 4
+}
