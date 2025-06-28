@@ -593,7 +593,7 @@ return reinterpret_cast<HOOKPROC>(memory);
 int Window::run() {
 	return run(NULL);
 }
-int Window::run(HWND dialog) {
+int Window::run(Window* dialog) {
 	MSG msg{}; auto lpMsg = &msg;
 	HHOOK hHook = NULL;
 	HOOKPROC myproc = nullptr;
@@ -642,11 +642,12 @@ int Window::run(HWND dialog) {
 		} while (0);
 
 		HWND hRootWnd = NULL;
-		bool bUseDlg = (dialog != NULL), bDlgExit = false;
-		while ((!bDlgExit) && GetMessageW(lpMsg, nullptr, 0, 0)) {
-			if (bUseDlg && lpMsg->message == WM_DESTROY) {
-                bDlgExit = true;
+		bool bUseDlg = (dialog != NULL);
+		while (1) {
+			if (bUseDlg) {
+				if (!dialog->is_alive()) break;
 			}
+			if (!GetMessageW(lpMsg, nullptr, 0, 0)) break;
 			if (dialogHandling || acceleratorHandling) {
 				hRootWnd = GetAncestor(lpMsg->hwnd, GA_ROOT);
 				if (hRootWnd == NULL) hRootWnd = lpMsg->hwnd;

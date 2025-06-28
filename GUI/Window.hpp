@@ -203,6 +203,9 @@ protected:
 	inline void validate_hwnd() const {
 		if (!hwnd) throw window_not_initialized_exception();
 	}
+	inline bool is_alive() const {
+		return hwnd && IsWindow(hwnd);
+	}
 
 	virtual HWND new_window();
 
@@ -403,7 +406,7 @@ public:
 	static int run();
 	// 为对话框窗口而设计的 run 函数。传入对话框实例，以实现
 	// 模态框效果。
-	static int run(HWND dialog);
+	static int run(Window* dialog);
 
 protected:
 	virtual void onCreated();
