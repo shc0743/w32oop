@@ -66,6 +66,12 @@ extern "C" {
 #endif
 
 
+#ifndef W32USE_NO_SYSTEM
+// Use System
+#include "./System/Service.hpp"
+#endif
+
+
 #ifndef W32USE_NO_UTILITY
 // Use Utility
 #include "./Utility/RAII.hpp"
