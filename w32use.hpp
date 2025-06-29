@@ -25,12 +25,14 @@ using w32oop::w32oop_exception;
 // Use concurrency
 #include "./Concurrency/Process.hpp"
 #include "./Concurrency/Thread.hpp"
+using namespace w32oop::concurrency;
 #endif
 
 
 #ifndef W32USE_NO_EVENT
 // Use event
 #include "./Event/EventObject.hpp"
+using namespace w32oop::event;
 #endif
 
 
@@ -56,6 +58,7 @@ extern "C" {
 #include "./IO/File.hpp"
 #include "./IO/PipeServer.hpp"
 #include "./IO/PipeClient.hpp"
+using namespace w32oop::io;
 #endif
 
 
@@ -69,6 +72,8 @@ extern "C" {
 #ifndef W32USE_NO_SYSTEM
 // Use System
 #include "./System/Service.hpp"
+using w32oop::system::Service;
+using w32oop::system::ServiceManager;
 #endif
 
 

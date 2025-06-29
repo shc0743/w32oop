@@ -13,7 +13,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 
 namespace w32oop::util::str::converts {
-	inline wstring str_wstr(const string str) {
+	inline wstring str_wstr(const string& str) {
 		wstring result;
 		size_t len = MultiByteToWideChar(CP_ACP, 0, str.c_str(),
 			(int)(str.size()), NULL, 0);
@@ -27,6 +27,19 @@ namespace w32oop::util::str::converts {
 		delete[] buffer;
 		return result;
 	}
-
+	inline string wstr_str(const wstring& wstr) {
+		string result;
+		size_t len = WideCharToMultiByte(CP_ACP, 0, wstr.c_str(),
+			(int)(wstr.size()), NULL, 0, NULL, NULL);
+		if (len < 0) return result;
+		char* buffer = new char[len + 1];
+		if (buffer == NULL) return result;
+		WideCharToMultiByte(CP_ACP, 0, wstr.c_str(),
+			(int)(wstr.size()), buffer, (int)len, NULL, NULL);
+		buffer[len] = '\0';
+		result.append(buffer);
+		delete[] buffer;
+		return result;
+	}
 }
 

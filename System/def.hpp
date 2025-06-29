@@ -12,6 +12,10 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #include "../Core/w32def.hpp"
 
 namespace w32oop::def {
-
+	class w32SystemObject : public w32Object {
+    public:
+        w32SystemObject() = default;
+        ~w32SystemObject() = default;
+    };
 }
 
