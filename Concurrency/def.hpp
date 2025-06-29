@@ -12,3 +12,6 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #include "../Core/w32def.hpp"
 
 
+namespace w32oop::concurrency {
+	
+}

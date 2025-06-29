@@ -12,10 +12,14 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #include "../Core/w32def.hpp"
 
 namespace w32oop::def {
-    class w32EventObject : public w32AbstractEvent {
-    public:
-        w32EventObject() = default;
-        virtual ~w32EventObject() = default;
-    };
+	class w32EventObject : public w32AbstractEvent {
+	public:
+		w32EventObject() = default;
+		virtual ~w32EventObject() = default;
+	};
+}
+
+namespace w32oop::event {
+	
 }
 
