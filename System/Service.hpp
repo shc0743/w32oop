@@ -83,9 +83,7 @@ namespace w32oop::system {
 		Service(Service&& src) noexcept : hService(move(src.hService)) {
 			src.hService = nullptr;
 		}
-		~Service() {
-			if (hService) CloseServiceHandle(hService);
-		};
+		~Service() = default;
 	public:
 		operator SC_HANDLE() {
 			return hService;
