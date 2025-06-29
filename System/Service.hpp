@@ -27,7 +27,11 @@ namespace w32oop::def {
 			validate();
 		};
 		~w32ServiceHandle() {
-			if (hService) CloseServiceHandle(hService);
+			if (hService) {
+				DWORD lastError = GetLastError();
+				CloseServiceHandle(hService);
+				SetLastError(lastError); // restore last error
+			}
 		};
 		w32ServiceHandle& operator=(SC_HANDLE hService) {
 			this->hService = hService;
@@ -79,9 +83,7 @@ namespace w32oop::system {
 		Service(Service&& src) noexcept : hService(move(src.hService)) {
 			src.hService = nullptr;
 		}
-		~Service() {
-			if (hService) CloseServiceHandle(hService);
-		};
+		~Service() = default;
 	public:
 		operator SC_HANDLE() {
 			return hService;
