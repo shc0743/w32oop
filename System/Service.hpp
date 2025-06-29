@@ -27,7 +27,7 @@ namespace w32oop::def {
 			validate();
 		};
 		~w32ServiceHandle() {
-			if (hService) CloseHandle(hService);
+			if (hService) CloseServiceHandle(hService);
 		};
 		w32ServiceHandle& operator=(SC_HANDLE hService) {
 			this->hService = hService;
