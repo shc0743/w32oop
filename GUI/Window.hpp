@@ -362,6 +362,7 @@ public:
 
 	virtual wstring text() const;
 	virtual void text(const std::wstring& text);
+	virtual void text(const std::string& text);
 
 	virtual HFONT font() const;
 	virtual void font(HFONT font);

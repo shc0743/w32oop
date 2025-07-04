@@ -291,6 +291,10 @@ void Window::text(const std::wstring& text) {
 	SendMessageTimeoutW(hwnd, WM_SETTEXT, 0, (LPARAM)text.c_str(), SMTO_ERRORONEXIT, 500, &pResult);
 }
 
+void Window::text(const std::string& text) {
+	return this->text(util::str::converts::str_wstr(text));
+}
+
 HFONT Window::font() const {
 	return reinterpret_cast<HFONT>(SendMessage(hwnd, WM_GETFONT, 0, 0));
 }
