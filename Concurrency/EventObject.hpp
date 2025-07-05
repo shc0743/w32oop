@@ -57,8 +57,15 @@ namespace w32oop::concurrency {
         bool wait(DWORD timeout = INFINITE);
 
         template <typename Container>
-        bool wait_multiple(const Container &events, DWORD timeout = INFINITE, bool wait_all = true);
-
+        bool wait_multiple(const Container &events, DWORD timeout = INFINITE, bool wait_all = true) {
+            Container handles(events);
+            handles.push_back(hEvent);
+            DWORD result = WaitForMultipleObjects(handles.size(), handles.data(), wait_all, timeout);
+            if (result == WAIT_FAILED) {
+                throw w32oop::exceptions::event_object_operation_failed_exception("Failed to wait for event object.");
+            }
+            return (result == WAIT_OBJECT_0);
+        }
     };
 }
 
