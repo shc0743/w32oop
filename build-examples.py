@@ -78,8 +78,8 @@ def compile_to_objs(cpp_files, output_dir, include_dirs, cl_exe='cl.exe'):
             cmd = [
                 cl_exe,
                 '/c',  # 只编译不链接
-                '/EHsc', '/Zi', '/std:c++20', '/D_UNICODE', '/DUNICODE',
-                '/nologo', '/MT',
+                '/EHsc', '/Zi', '/MT', '/std:c++20', '/D_UNICODE', '/DUNICODE',
+                '/nologo',
                 f'/Fo{obj_path}',
                 f'{cpp_file}'
             ]
@@ -146,8 +146,8 @@ def build_examples(examples_dir, obj_dir, link_exe='link.exe'):
 
             compile_cmd = [
                 'cl.exe',
-                '/c', '/EHsc', '/Zi', '/std:c++20',
-                '/nologo', '/MT',
+                '/c', '/EHsc', '/Zi', '/MT', '/std:c++20',
+                '/nologo',
                 '/D_UNICODE', '/DUNICODE',
                 f'/Fo{demo_obj}',
                 f'{demo_cpp}'
@@ -183,7 +183,7 @@ def build_examples(examples_dir, obj_dir, link_exe='link.exe'):
                 '/MANIFEST:EMBED',
                 '/nologo',
                 '/INCREMENTAL:NO',
-                '/MANIFESTUAC:"level=\'asInvoker\' uiAccess=\'false\'"',
+                '/MANIFESTUAC:level="asInvoker" uiAccess="false"',
                 '/OPT:REF'
             ] + all_obj_files + sys_lib
 
