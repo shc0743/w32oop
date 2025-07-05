@@ -19,48 +19,8 @@ namespace w32oop::exceptions {
 }
 
 namespace w32oop::def {
-	class w32ServiceHandle : public w32SystemObject, public w32RAIIObject {
-		SC_HANDLE hService;
-	public:
-		w32ServiceHandle(SC_HANDLE hService) {
-			this->hService = hService;
-			validate();
-		};
-		~w32ServiceHandle() {
-			if (hService) {
-				DWORD lastError = GetLastError();
-				CloseServiceHandle(hService);
-				SetLastError(lastError); // restore last error
-			}
-		};
-		w32ServiceHandle& operator=(SC_HANDLE hService) {
-			this->hService = hService;
-			// skip validate
-			return *this;
-		};
+	using w32ServiceHandle = w32BaseHandle<SC_HANDLE, false, CloseServiceHandle, exceptions::invalid_scm_handle_exception>;
 
-		inline void validate() const {
-			if (!hService) throw exceptions::invalid_scm_handle_exception();
-		};
-
-		operator SC_HANDLE() const {
-			validate();
-			return hService;
-		};
-		
-		w32ServiceHandle(const w32ServiceHandle&) = delete;
-		w32ServiceHandle& operator=(const w32ServiceHandle&) = delete;
-
-		w32ServiceHandle(w32ServiceHandle&& other) noexcept {
-			hService = other.hService;
-			other.hService = nullptr;
-		};
-		w32ServiceHandle& operator=(w32ServiceHandle&& other) noexcept {
-			hService = other.hService;
-			other.hService = nullptr;
-			return *this;
-		};
-	};
 	class w32ServiceObject : public w32SystemObject {
 	public:
 		w32ServiceObject() = default;

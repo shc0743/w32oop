@@ -15,7 +15,6 @@ C++ Win32 Object-Oriented Programming Framework
 - [ ] [Concurrence](./Concurrence/)
   - [ ] [Process](./Concurrence/Process.hpp) (`hProcess`)
   - [ ] [Thread](./Concurrence/Thread.hpp) (`hThread`)
-- [ ] [Event](./Event/)
   - [ ] [EventObject](./Event/EventObject.hpp) (`hEvent`)
 - [ ] [Network](./Network/)
   - [ ] [WinINetTask](./Network/WinINetTask.hpp) (`HINTERNET`)

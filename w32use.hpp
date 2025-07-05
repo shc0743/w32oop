@@ -25,14 +25,8 @@ using w32oop::w32oop_exception;
 // Use concurrency
 #include "./Concurrency/Process.hpp"
 #include "./Concurrency/Thread.hpp"
+#include "./Concurrency/EventObject.hpp"
 using namespace w32oop::concurrency;
-#endif
-
-
-#ifndef W32USE_NO_EVENT
-// Use event
-#include "./Event/EventObject.hpp"
-using namespace w32oop::event;
 #endif
 
 
@@ -43,12 +37,7 @@ using namespace w32oop::ui;
 using namespace w32oop::ui::foundation;
 
 #ifndef W32USE_PUBLIC_API_ONLY
-extern "C" {
-    int WINAPI MessageBoxTimeoutA(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption,
-        UINT uType, WORD wLanguageId, DWORD dwMilliseconds);
-    int WINAPI MessageBoxTimeoutW(HWND hWnd, LPCWSTR lpText, LPCWSTR lpCaption,
-        UINT uType, WORD wLanguageId, DWORD dwMilliseconds);
-};
+#include "./GUI/InternalMessageBox.hpp"
 #endif
 #endif
 

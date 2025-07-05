@@ -51,7 +51,7 @@ namespace w32oop {
 
     }
 
-    using core::w32Object;
+    using namespace core;
     using namespace def;
     using exceptions::w32oop_exception;
 }
