@@ -40,3 +40,4 @@ Browse.VC.db
 out
 ipch
 *.ipch
+.cache
