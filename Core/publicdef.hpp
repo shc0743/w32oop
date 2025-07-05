@@ -10,11 +10,6 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #endif
 
 namespace w32oop::def {
-    class w32AbstractEvent : public w32Object {
-    public:
-        w32AbstractEvent() = default;
-        virtual ~w32AbstractEvent() = default;
-    };
 #ifdef NT_SUCCESS
 #undef NT_SUCCESS
 #endif

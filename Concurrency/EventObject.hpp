@@ -10,5 +10,55 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #endif
 
 #include "./def.hpp"
+#include "./Joinable.hpp"
 
+
+namespace w32oop::exceptions {
+    w32oop_declare_exception_class_from(event_object_operation_failed, concurrency_exception);
+}
+
+
+namespace w32oop::concurrency {
+	class EventObject : public Joinable {
+    protected:
+        w32EventHandle hEvent;
+    public:
+        EventObject(bool auto_reset = false) : hEvent(CreateEventW(nullptr, !auto_reset, false, nullptr)) {}
+        EventObject(bool auto_reset, bool initial_state, PCWSTR name, LPSECURITY_ATTRIBUTES lpsa) :
+            hEvent(CreateEventW(lpsa, !auto_reset, initial_state, name)) {}
+
+        ~EventObject() {
+            CloseHandle(hEvent);
+        }
+
+        // Getters
+        HANDLE get() const {
+            return hEvent;
+        }
+
+        // move constructor
+        EventObject(EventObject&& other) : hEvent(move(other.hEvent)) {}
+
+        // move assignment operator
+        EventObject& operator=(EventObject&& other) {
+            if (this != &other) {
+                hEvent = move(other.hEvent);
+            }
+            return *this;
+        }
+
+    public:
+        // Operations
+        void set();
+        void reset();
+
+        virtual void join();
+
+        bool wait(DWORD timeout = INFINITE);
+
+        template <typename Container>
+        bool wait_multiple(const Container &events, DWORD timeout = INFINITE, bool wait_all = true);
+
+    };
+}
 

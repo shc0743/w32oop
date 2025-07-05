@@ -4,8 +4,8 @@ A set of utilities to simplify GUI programming.
 
 ## Usage
 
-1. Include the `Window.hpp` in your project and add `Window.cpp`
-2. Extend the w32oop::Window class
+1. Include the `<w32use.hpp>` in your project
+2. Extend the `Window` class
 
 ## What to do?
 
@@ -34,8 +34,7 @@ const wstring get_class_name() const override {
 **Creating controls**
 
 ```cpp
-using namespace w32oop::foundation;
-class YourWindowClass : public w32oop::Window {
+class YourWindowClass : public Window {
 public:
     YourWindowClass() : Window(L"Your Window Class", 400, 300, 0, 0, WS_OVERLAPPEDWINDOW) {}
 private:
@@ -79,11 +78,11 @@ int main() {
 }
 ```
 
-[Full Demo Here](./examples/10.creating-controls/demo.cpp)
+[Full Demo Here](../.examples/GUI/10.creating-controls/demo.cpp)
 
 ## More examples
 
-[Examples](./examples/)
+[Examples](../.examples/GUI/)
 
 # License
 

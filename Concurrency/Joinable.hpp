@@ -9,32 +9,12 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #error "Must be included in C++"
 #endif
 
-#include "../Core/w32def.hpp"
-#include "../Core/w32handle.hpp"
-
-
-namespace w32oop::exceptions {
-	w32oop_declare_exception_class(concurrency);
-
-	w32oop_declare_exception_class_from(invalid_event_handle, concurrency_exception);
-	w32oop_declare_exception_class_from(invalid_process_handle, concurrency_exception);
-	w32oop_declare_exception_class_from(invalid_thread_handle, concurrency_exception);
-}
-
-
-namespace w32oop::def {
-	using w32EventHandle = w32BaseHandle<HANDLE, false, CloseHandle, exceptions::invalid_event_handle_exception>;
-	using w32ProcessHandle = w32BaseHandle<HANDLE, true, CloseHandle, exceptions::invalid_process_handle_exception>;
-	using w32ThreadHandle = w32BaseHandle<HANDLE, true, CloseHandle, exceptions::invalid_thread_handle_exception>;
-
-    class w32ConcurrencyObject : public w32Object {
-	public:
-		w32ConcurrencyObject() = default;
-		virtual ~w32ConcurrencyObject() = default;
-	};
-}
+#include "./def.hpp"
 
 
 namespace w32oop::concurrency {
-	
+    class Joinable : public w32ConcurrencyObject {
+    public:
+        virtual void join() = 0;
+    };
 }

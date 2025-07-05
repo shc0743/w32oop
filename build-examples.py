@@ -230,7 +230,7 @@ def main():
     include_dirs = [project_root]  # 添加项目根目录作为包含路径
     if not compile_to_objs(cpp_files, obj_dir, include_dirs):
         print("\033[31m编译库文件失败，终止构建\033[0m")
-        return
+        sys.exit(1)
 
     # 步骤 3: 构建示例
     print("\n\033[34m构建示例程序...\033[0m")
@@ -243,8 +243,7 @@ def main():
 
     if success_count == 0:
         print("\033[31m构建示例程序失败\033[0m")
-        from sys import exit
-        exit(1)
+        sys.exit(1)
     else:
         print("\033[92m构建示例程序成功\033[0m")
 

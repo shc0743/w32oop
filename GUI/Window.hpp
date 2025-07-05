@@ -43,7 +43,7 @@ using namespace exceptions;
 
 class Window;
 
-class EventData final : public w32GUIObject, public w32AbstractEvent {
+class EventData final : public w32GUIObject {
 public:
 	EventData() {
 		hwnd = 0;
