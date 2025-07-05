@@ -9,22 +9,49 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #error "Must be included in C++"
 #endif
 
-#include "../Core/w32def.hpp"
-#include "../Core/w32handle.hpp"
+#include "./def.hpp"
+
 
 namespace w32oop::exceptions {
-    class system_exception : public w32oop_exception {
-    public: system_exception(string d) : w32oop_exception(d) {
-    } system_exception() : w32oop_exception(("Exception: " "system")) {
-    }
-    };
+	w32oop_declare_exception_class_from(invalid_hook_handle, system_exception);
 }
 
+
 namespace w32oop::def {
-	class w32SystemObject : public w32Object {
-    public:
-        w32SystemObject() = default;
-        ~w32SystemObject() = default;
-    };
+	using w32HookHandle = w32BaseHandle<HHOOK, false, UnhookWindowsHookEx, exceptions::invalid_hook_handle_exception>;
+	
+	class w32HookObject : public w32SystemObject {
+	public:
+		w32HookObject() = default;
+		~w32HookObject() = default;
+	};
+}
+
+
+namespace w32oop::system {
+	class Hook : public w32HookObject {
+	protected:
+		w32HookHandle hHook;
+		HOOKPROC ptrCallback;
+		
+	public:
+		Hook() {
+			ptrCallback = create_proc(cb, (long long)(void*)this);
+		}
+		virtual ~Hook() {
+			VirtualFree(ptrCallback, 0, MEM_RELEASE);
+		}
+
+		virtual void set(int idHook, DWORD dwThreadId, HINSTANCE hMod = NULL) final;
+		virtual void unset() final;
+
+	protected:
+		using MyHookProc = LRESULT(__stdcall*)(int code, WPARAM wParam, LPARAM lParam, long long userdata);
+		static LRESULT CALLBACK cb(int nCode, WPARAM wParam, LPARAM lParam, long long userdata);
+		static HOOKPROC create_proc(MyHookProc pfn, long long userdata);
+
+	protected:
+		virtual LRESULT callback(int nCode, WPARAM wParam, LPARAM lParam) = 0;
+	};
 }
 

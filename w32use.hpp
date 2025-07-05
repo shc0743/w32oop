@@ -69,6 +69,7 @@ using w32oop::system::ServiceManager;
 #ifndef W32USE_NO_UTILITY
 // Use Utility
 #include "./Utility/RAII.hpp"
+#include "./Utility/Memory.hpp"
 #include "./Utility/StringUtil/converts.hpp"
 #include "./Utility/StringUtil/encodings.hpp"
 #include "./Utility/StringUtil/operations.hpp"

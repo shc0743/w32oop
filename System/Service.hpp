@@ -13,7 +13,6 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 
 namespace w32oop::exceptions {
-	w32oop_declare_exception_class(system);
 	w32oop_declare_exception_class_from(invalid_scm_handle, system_exception);
 	w32oop_declare_exception_class_from(service_operation_failed, system_exception);
 }

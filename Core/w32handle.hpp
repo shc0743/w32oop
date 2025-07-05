@@ -8,7 +8,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #ifndef __cplusplus
 #error "Must be included in C++"
 #endif
-// Remember to include "w32def.hpp" first
+#include "w32def.hpp"
 
 namespace w32oop::core {
 	/// <summary>
@@ -18,8 +18,8 @@ namespace w32oop::core {
 	/// <typeparam name="invalid_exception_class">What will be thown if the handle is not valid?</typeparam>
 	/// <typeparam name="AllowNegativeOneAsValidHandle">If the specific type accepts (-1). For example, in file handle -1 is considered as invalid, but in process handle, -1 is a pseudo handle referring to the current process itself.</typeparam>
 	/// <typeparam name="HandleCloser">The function pointer to close the handle, "CloseHandle" for example.</typeparam>
-	template <typename HandleType, bool AllowNegativeOneAsValidHandle, BOOL(__stdcall*HandleCloser)(HandleType), typename invalid_exception_class>
-	class w32BaseHandle : public w32Object, public w32RAIIObject {
+	template <typename HandleType, bool AllowNegativeOneAsValidHandle, BOOL(__stdcall* HandleCloser)(HandleType), typename invalid_exception_class>
+	class w32BaseHandle : public w32RAIIObject {
 		HandleType value;
 	public:
 		inline bool is_valid() const {
@@ -35,6 +35,8 @@ namespace w32oop::core {
 			if (!is_valid()) throw invalid_exception_class("Invalid handle value");
 		}
 
+		// Constructors (Normal)
+		w32BaseHandle() : value(0) {}
 		// Constructors (Resource Acquisition Is Initialization)
 		w32BaseHandle(HandleType value) {
 			this->value = value;
@@ -56,7 +58,8 @@ namespace w32oop::core {
 		// Add move semantics so that we can move handles
 		w32BaseHandle(w32BaseHandle&& other) noexcept
 			: value(std::exchange(other.value, HandleType{}))
-		{}
+		{
+		}
 		w32BaseHandle& operator=(w32BaseHandle&& other) noexcept {
 			if (this == &other) return *this; // self-move
 			if (is_closable()) HandleCloser(this->value); // in operator=, we should close the old handle first
@@ -81,5 +84,5 @@ namespace w32oop::core {
 			value = 0;
 		}
 	};
-}
+};
 

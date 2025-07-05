@@ -455,8 +455,8 @@ private:
 		LPARAM lParam,
 		long long userdata
 	);
+	static bool hook_is_LL;
 	using MyHookProc = LRESULT(__stdcall*)(int code, WPARAM wParam, LPARAM lParam, long long userdata);
-	static HOOKPROC make_hHook_proc(MyHookProc pfn, long long userdata);
 protected:
 	// 注意：快捷键支持必须
 	// - 要么在 Window::run() 之前调用register_hot_key
@@ -729,6 +729,5 @@ endpackage;
 #undef package
 #undef declare
 #undef endpackage
-#undef w32oop_declare_exception_class
 
 

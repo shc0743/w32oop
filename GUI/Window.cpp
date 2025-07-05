@@ -1,5 +1,6 @@
 ﻿#include "Window.hpp"
 #include "../Utility/StringUtil/converts.hpp"
+#include "../System/Hooks.hpp"
 using namespace w32oop;
 using namespace w32oop::util;
 using namespace w32oop::ui;
@@ -24,6 +25,23 @@ map<Window::HotKeyOptions, function<void(Window::HotKeyProcData&)>> Window::hotk
 std::recursive_mutex Window::hotkey_handlers_mutex;
 std::atomic<size_t> Window::hotkey_global_count;
 std::atomic<unsigned long long> BaseSystemWindow::ctlid_generator;
+bool Window::hook_is_LL;
+
+
+namespace w32oop::ui::internal {
+	class WindowHotkeyHooker : public w32oop::system::Hook {
+	public:
+		long long user = 0;
+		HHOOK getHook() const {
+			return hHook.get();
+		}
+		MyHookProc proc = 0;
+		virtual LRESULT callback(int nCode, WPARAM wParam, LPARAM lParam) {
+			if (!proc) return CallNextHookEx(hHook, nCode, wParam, lParam);
+            return proc(nCode, wParam, lParam, user);
+		}
+	};
+}
 
 
 const wstring Window::get_class_name() const
@@ -518,85 +536,19 @@ Window::~Window() {
 	destroy();
 }
 
-HOOKPROC Window::make_hHook_proc(MyHookProc pfn, long long userdata) {
-	void* memory = VirtualAlloc(NULL, 4096, MEM_COMMIT, PAGE_READWRITE); // 4096是最小的了
-	if (!memory) throw std::bad_alloc();
-	const auto fail = [&](const char* reason) {
-		VirtualFree(memory, 0, MEM_RELEASE);
-		throw std::runtime_error(reason);
-	};
-
-	// 向 memory 写入我们的x86_64代码
-#ifdef _WIN64
-#if 0
-	; x64机器码 - __stdcall函数转发器
-	; 函数签名: LRESULT __stdcall function_name(int nCode, WPARAM wParam, LPARAM lParam)
-	; 转发到: LRESULT __stdcall procname(int nCode, WPARAM wParam, LPARAM lParam, long long userdata)
-#endif
-	static const unsigned char payload[] = {
-		0x53,                               // push rbx
-		0x56,                               // push rsi
-		0x57,                               // push rdi
-			0x55,                               // push rbp
-			0x48, 0x83, 0xEC, 0x28,             // sub rsp, 28h (对齐栈)
-			// 保存参数（注意：lParam 已经在 R8 中！）
-			0x48, 0x89, 0xCB,                   // mov rbx, rcx   ; 保存 nCode
-			0x48, 0x89, 0xD6,                   // mov rsi, rdx   ; 保存 wParam
-			//; lParam 已在 R8
-			// 加载函数指针和用户数据
-			0x48, 0xB8, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, // mov rax, [func_ptr]
-			0x49, 0xB9, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, // mov r9, [userdata]
-			// 设置调用参数
-			0x48, 0x89, 0xD9,                   // mov rcx, rbx   ; 恢复 nCode
-			0x48, 0x89, 0xF2,                   // mov rdx, rsi   ; 恢复 wParam
-			0xFF, 0xD0,                         // call rax
-			// 恢复寄存器
-			0x48, 0x83, 0xC4, 0x28,             // add rsp, 28h
-			0x5D,                               // pop rbp
-			0x5F,                               // pop rdi
-			0x5E,                               // pop rsi
-			0x5B,                               // pop rbx
-			0xC3                                // ret
-	};
-
-	size_t written = 0;
-	if (0 == WriteProcessMemory(GetCurrentProcess(), memory, &payload, sizeof(payload), &written) || written != sizeof(payload))
-		fail("Failed to write memory");
-
-	// 写入placeholder
-	// 函数指针（占位符 8 字节）
-	if (!WriteProcessMemory(GetCurrentProcess(), (char*)memory + 16, &pfn, 8, &written) || written != 8)
-		fail("Failed to write function pointer");
-
-	// userdata（占位符 8 字节）
-	if (!WriteProcessMemory(GetCurrentProcess(), (char*)memory + 26, &userdata, 8, &written) || written != 8)
-		fail("Failed to write userdata");
-#else
-#error "Platform is not supported; the library will not work well!"
-#endif
-
-DWORD old_page_protection = 0;
-if (!VirtualProtect(memory, sizeof(payload), PAGE_EXECUTE_READ, &old_page_protection)) // 防止写入
-fail("Failed to change memory protection");
-
-return reinterpret_cast<HOOKPROC>(memory);
-}
-
 int Window::run() {
 	return run(NULL);
 }
 int Window::run(Window* dialog) {
 	MSG msg{}; auto lpMsg = &msg;
-	HHOOK hHook = NULL;
-	HOOKPROC myproc = nullptr;
 	HotKeyProcInternal* myproc_data = nullptr;
 	bool useGlobalHook = false;
 	WindowRAIIHelper _1([&] {
-		if (hHook) UnhookWindowsHookEx(hHook);
-		if (myproc) VirtualFree(myproc, 0, MEM_RELEASE);
 		if (myproc_data) delete myproc_data;
 		if (useGlobalHook) --hotkey_global_count;
-		});
+	});
+	internal::WindowHotkeyHooker hooker;
+	
 	try {
 		volatile bool dialogHandling = !get_global_option(Option_DisableDialogWindowHandling);
 		volatile bool acceleratorHandling = !get_global_option(Option_DisableAcceleratorHandling);
@@ -609,8 +561,7 @@ int Window::run(Window* dialog) {
 			int idHook = (get_global_option(Option_EnableGlobalHotkey) ? WH_KEYBOARD_LL : WH_KEYBOARD);
 			MyHookProc proc = (get_global_option(Option_EnableGlobalHotkey) ? keyboard_proc_LL : keyboard_proc);
 			if (proc == keyboard_proc_LL && hotkey_global_count > 0) {
-				// 全局热键应该在主线程中进行，否则
-				// 某个线程结束后对应的全局钩子被移除
+				// 全局热键应该在主线程中进行，否则某个线程结束后对应的全局钩子被移除
 				// 那就乱套了
 				break;
 			}
@@ -619,17 +570,9 @@ int Window::run(Window* dialog) {
 				useGlobalHook = true;
 			}
 			myproc_data = new HotKeyProcInternal();
-			myproc = make_hHook_proc(proc, (long long)myproc_data);
-			hHook = SetWindowsHookExW(
-				idHook, myproc, GetModuleHandleW(NULL), dwThreadId
-			);
-			if (!hHook) {
-				if (get_global_option(Option_DebugMode)) {
-					fprintf(stderr, "[Window] SetWindowsHookExW failed: %d\n", GetLastError());
-					DebugBreak();
-				}
-			}
-			myproc_data->hHook = hHook;
+			hooker.user = (long long)myproc_data;
+			hooker.set(idHook, dwThreadId, GetModuleHandleW(NULL));
+			myproc_data->hHook = hooker.getHook(); // 遗留设计。有时间再清理
 			myproc_data->thread_id = GetCurrentThreadId();
 		} while (0);
 

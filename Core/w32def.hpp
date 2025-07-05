@@ -18,42 +18,45 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #include <windows.h>
 #include <windowsx.h>
 
-#define w32oop_declare_exception_class(name) class name##_exception : public w32oop_exception { public: name##_exception(string d) : w32oop_exception(d) {} name##_exception() : w32oop_exception(( "Exception: " # name )) {} }
 
-#define w32oop_declare_exception_class_from(name, _Ty) class name##_exception : public _Ty { public: name##_exception(string d) : _Ty(d) {} name##_exception() : _Ty(( "Exception: " # name )) {} }
+#define w32oop_declare_exception_class_from(name, _Ty) class name##_exception : public _Ty { public: name##_exception(std::string d) : _Ty(d) {} name##_exception() : _Ty(( "Exception: " # name )) {} }
+#define w32oop_declare_exception_class(name) w32oop_declare_exception_class_from(name, w32oop_exception)
+
 
 namespace w32oop {
-    using namespace std;
-    
-    namespace core {
-        // The w32Object class is the base class for all w32oop objects.
-        // All classes in `w32oop` are inherited from this class.
-        class w32Object {
-        public:
-            w32Object() = default;
-            virtual ~w32Object() = default;
-        };
-    }
+	using namespace std;
+	
+	namespace core {
+		// The w32Object class is the base class for all w32oop objects.
+		// All classes in `w32oop` are inherited from this class.
+		class w32Object {
+		public:
+			w32Object() = default;
+			virtual ~w32Object() = default;
+		};
+	}
 
-    namespace def {
-        // Interface class for RAII objects.
-        class w32RAIIObject : public core::w32Object {
-        public:
-            w32RAIIObject() = default;
-            virtual ~w32RAIIObject() = default;
-        };
-    }
+	namespace def {
+		// Interface class for RAII objects.
+		class w32RAIIObject : public core::w32Object {
+		public:
+			w32RAIIObject() = default;
+			virtual ~w32RAIIObject() = default;
+		};
+	}
 
-    namespace exceptions {
-#define declare_exception(name) class name##_exception : public runtime_error { public: name##_exception(string d) : runtime_error(d) {} name##_exception() : runtime_error(( "Exception: " # name )) {} }
-        declare_exception(w32oop);
-#undef declare_exception
+	namespace exceptions {
+		class w32oop_exception : public runtime_error {
+		public:
+			w32oop_exception(std::string d) : runtime_error(d) {}
+			w32oop_exception() : runtime_error(("Exception: " "w32oop")) {}
+		};
 
-    }
+	}
 
-    using namespace core;
-    using namespace def;
-    using exceptions::w32oop_exception;
+	using namespace core;
+	using namespace def;
+	using exceptions::w32oop_exception;
 }
 
 #include "./publicdef.hpp"

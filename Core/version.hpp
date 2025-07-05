@@ -1,4 +1,4 @@
-namespace w32oop::core {
+﻿namespace w32oop::core {
     constexpr long version = 50605020;
     constexpr char *version_string() const noexcept
     {
