@@ -1,7 +1,7 @@
 ﻿// compile command: cl /EHsc demo.cpp /std:c++20
 #define UNICODE 1
 #define _UNICODE 1
-#include "../../Window.hpp"
+#include <w32use.hpp>
 #include <fstream>
 // To simplify the code, we included a CPP
 // however, never do it in a real project!
@@ -18,8 +18,7 @@ name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
 processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #pragma comment(linker, "/entry:wmainCRTStartup /subsystem:windows")
 
-using namespace w32oop;
-using namespace w32oop::foundation;
+using namespace std;
 
 namespace MyDemo {
     ULONGLONG MyGetFileSizeW(wstring filename)

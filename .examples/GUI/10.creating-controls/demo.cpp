@@ -1,7 +1,7 @@
 ﻿// compile command: cl /EHsc demo.cpp /std:c++20
 #define UNICODE 1
 #define _UNICODE 1
-#include "../../Window.hpp"
+#include <w32use.hpp>
 
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
@@ -10,9 +10,9 @@ name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
 processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #pragma comment(linker, "/entry:mainCRTStartup /subsystem:windows")
 
-using namespace w32oop;
-using namespace w32oop::foundation;
-class YourWindowClass : public w32oop::Window {
+using namespace std;
+
+class YourWindowClass : public Window {
 public:
 	YourWindowClass() : Window(L"Your Window Class", 400, 300, 0, 0, WS_OVERLAPPEDWINDOW) {}
 private:

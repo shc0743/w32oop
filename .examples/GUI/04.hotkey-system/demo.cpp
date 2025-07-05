@@ -1,7 +1,7 @@
 ﻿// compile command: cl /EHsc demo.cpp /std:c++20
 #define UNICODE 1
 #define _UNICODE 1
-#include "../../Window.hpp"
+#include <w32use.hpp>
 
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
@@ -10,13 +10,13 @@ name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
 processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #pragma comment(linker, "/entry:mainCRTStartup /subsystem:windows")
 
-using namespace w32oop;
-using namespace w32oop::foundation;
+using namespace std;
 
 namespace MyDemo {
 
     class HotKeySystemwideAppDemo : public Window {
     protected:
+        Static text;
 
     public:
         HotKeySystemwideAppDemo(const wstring& title, int width, int height, int x = 0, int y = 0)
@@ -24,17 +24,27 @@ namespace MyDemo {
         {
             // Do not initialize the button here
         }
-        ~HotKeySystemwideAppDemo() override {
-        }
     protected:
+        vector<thread> myThreads;
+        void onDestroy() override {
+            for (auto& t : myThreads) {
+                if (t.joinable()) {
+                    t.join();
+                }
+            } 
+        }
         void onCreated() override {
+            text.set_parent(*this);
+            text.create(L"Result will show here...", 400, 30);
             register_hot_key(true, true, false, 'U', [&](HotKeyProcData &data) {
                 data.preventDefault();
                 if (!data.pKbdStruct) return;
                 // Do not block the hook proc thread! (Especially when the Hook is globally hooked)
-                std::thread([&] {
-                    MessageBoxW(hwnd, L"Ctrl+Alt+U is pressed!", L"Notification", MB_OK | MB_TOPMOST); // ensure top-most
-                }).detach();
+                myThreads.push_back(std::thread([&] {
+                    text.text(L"Ctrl+Alt+U is pressed!");
+                    Sleep(1000);
+                    text.text(L"Result will show here...");
+                }));
             }, Window::HotKeyOptions::System);
         }
         void onPaint(EventData& event) {

@@ -30,7 +30,6 @@ def enable_vt_mode():
     mode.value |= ENABLE_VIRTUAL_TERMINAL_PROCESSING
     kernel32.SetConsoleMode(h_out, mode)
 
-
 def find_cpp_files(base_dir, exclude_prefixes=('.',)):
     """查找所有符合条件的 .cpp 文件"""
     cpp_files = []
@@ -50,6 +49,8 @@ def compile_to_objs(cpp_files, output_dir, include_dirs, cl_exe='cl.exe'):
     """编译所有 .cpp 文件为 .obj 文件"""
     obj_files = []
     os.makedirs(output_dir, exist_ok=True)
+    compiled_count = 0
+    skipped_count = 0
 
     for cpp_file in cpp_files:
         # 计算输出路径：.cache/build/相对路径/文件名.obj
@@ -60,34 +61,62 @@ def compile_to_objs(cpp_files, output_dir, include_dirs, cl_exe='cl.exe'):
         # 确保目录存在
         os.makedirs(obj_dir, exist_ok=True)
 
-        # 构建编译命令
-        cmd = [
-            cl_exe,
-            '/c',  # 只编译不链接
-            '/EHsc', '/Zi', '/std:c++20', '/D_UNICODE', '/DUNICODE',
-            '/nologo',
-            f'/Fo{obj_path}',
-            f'{cpp_file}'
-        ]
+        # 检查是否需要重新编译
+        need_compile = True
+        print(f"\n\033[4m\033[96m{obj_path}\033[0m", end='')
+        if os.path.exists(obj_path):
+            src_mtime = os.path.getmtime(cpp_file)
+            obj_mtime = os.path.getmtime(obj_path)
+            if src_mtime < obj_mtime:
+                # 源文件比目标文件旧，跳过编译
+                need_compile = False
+                skipped_count += 1
+                print(f" \033[93mNot Modified\033[0m")
 
-        # 添加包含目录
-        for include_dir in include_dirs:
-            cmd.append(f'/I"{include_dir}"')
+        if need_compile:
+            # 构建编译命令
+            cmd = [
+                cl_exe,
+                '/c',  # 只编译不链接
+                '/EHsc', '/Zi', '/std:c++20', '/D_UNICODE', '/DUNICODE',
+                '/nologo', '/MT',
+                f'/Fo{obj_path}',
+                f'{cpp_file}'
+            ]
 
-        # 执行编译
-        print(f"\033[93m编译: {cpp_file} -> {obj_path}\033[0m")
-        result = subprocess.call(cmd)
+            # 添加包含目录
+            for include_dir in include_dirs:
+                cmd.append(f'/I"{include_dir}"')
 
-        if result != 0:
-            print(f"编译错误: {cpp_file}")
-            print(result.stderr)
-            return False
-        else:
-            print(f"\033[92m编译成功: {obj_path}\033[0m")
+            print('')
+
+            # 执行编译
+            result = subprocess.call(cmd)
+
+            if result != 0:
+                print(f"编译错误: {cpp_file}")
+                return False
+            else:
+                compiled_count += 1
 
         obj_files.append(obj_path)
 
+    print(f"\n\033[34m编译统计: {compiled_count} 个文件重新编译, {skipped_count} 个文件跳过\033[0m")
     return True
+
+sys_lib = [
+    'kernel32.lib',
+    'user32.lib',
+    'gdi32.lib',
+    'comdlg32.lib',
+    'advapi32.lib',
+    'shell32.lib',
+    'ole32.lib',
+    'oleaut32.lib',
+    'uuid.lib',
+    'odbc32.lib',
+    'odbccp32.lib',
+]
 
 def build_examples(examples_dir, obj_dir, link_exe='link.exe'):
     """构建所有示例程序"""
@@ -105,17 +134,20 @@ def build_examples(examples_dir, obj_dir, link_exe='link.exe'):
             demo_cpp = os.path.join(root, 'demo.cpp')
             example_name = os.path.basename(root)
             exe_output = os.path.join(root, f"{example_name}.exe")
+            
+            # 为每个示例创建独立的obj目录
+            example_obj_dir = os.path.join(obj_dir, '..', "examples", example_name)
+            os.makedirs(example_obj_dir, exist_ok=True)
 
             print(f"\n\033[4m\033[96m{example_name}\033[0m")
 
             # 编译 demo.cpp
-            demo_obj = os.path.join(obj_dir, "examples", example_name, "demo.obj")
-            os.makedirs(os.path.dirname(demo_obj), exist_ok=True)
+            demo_obj = os.path.join(example_obj_dir, "demo.obj")
 
             compile_cmd = [
                 'cl.exe',
                 '/c', '/EHsc', '/Zi', '/std:c++20',
-                '/nologo',
+                '/nologo', '/MT',
                 '/D_UNICODE', '/DUNICODE',
                 f'/Fo{demo_obj}',
                 f'{demo_cpp}'
@@ -130,19 +162,18 @@ def build_examples(examples_dir, obj_dir, link_exe='link.exe'):
             compile_result = subprocess.call(compile_cmd)
             if compile_result != 0:
                 print(f"\033[31m编译 demo.cpp 失败: {demo_cpp}\033[0m")
-                print(compile_result)
                 success = False
                 continue
 
-            # 查找所有 .obj 文件 (库文件 + demo.obj)
+            # 只链接库的obj文件和当前示例的demo.obj
             all_obj_files = []
-            for root_obj, _, obj_files in os.walk(obj_dir):
+            # 添加库的obj文件
+            for root_obj, _, obj_files in os.walk(os.path.join(obj_dir)):
                 for obj_file in obj_files:
                     if obj_file.endswith('.obj'):
-                        all_obj_files.append(f'"{os.path.join(root_obj, obj_file)}"')
-
-            # 添加 demo.obj
-            all_obj_files.append(f'"{demo_obj}"')
+                        all_obj_files.append(os.path.join(root_obj, obj_file))
+            # 添加当前示例的demo.obj
+            all_obj_files.append(demo_obj)
 
             # 构建链接命令
             link_cmd = [
@@ -150,16 +181,18 @@ def build_examples(examples_dir, obj_dir, link_exe='link.exe'):
                 '/OUT:' + exe_output,
                 '/MACHINE:X64',
                 '/MANIFEST:EMBED',
-                '/nologo'
-            ] + all_obj_files
+                '/nologo',
+                '/INCREMENTAL:NO',
+                '/MANIFESTUAC:"level=\'asInvoker\' uiAccess=\'false\'"',
+                '/OPT:REF'
+            ] + all_obj_files + sys_lib
 
             # 执行链接
             print(f"\033[94m{' '.join(link_cmd)}\033[0m")
-            link_result = subprocess.run(link_cmd, capture_output=True, text=True)
+            link_result = subprocess.call(link_cmd)
 
-            if link_result.returncode != 0:
-                print(f"\033[31m链接失败: {example_name}\033[0m")
-                print(link_result.stderr)
+            if link_result != 0:
+                print(f"\033[31m链接失败: {example_name} ({link_result})\033[0m")
                 success = False
             else:
                 print(f"\033[92m成功生成: {exe_output}\033[0m")
@@ -188,12 +221,12 @@ def main():
     start_time = time.time()
 
     # 步骤 1: 找到所有 .cpp 文件 (排除点开头的目录)
-    print("\033[34m扫描源文件...\033[0m")
+    print("\033[94m扫描源文件...\033[0m")
     cpp_files = find_cpp_files(project_root, exclude_prefixes=('.',))
-    print(f"\033[32m找到 {len(cpp_files)} 个 .cpp 文件\033[0m")
+    print(f"\033[96m找到 {len(cpp_files)} 个 .cpp 文件\033[0m")
 
     # 步骤 2: 编译为中间文件
-    print("\n\033[32m编译库文件...\033[0m")
+    print("\n\033[34m编译库文件...\033[0m")
     include_dirs = [project_root]  # 添加项目根目录作为包含路径
     if not compile_to_objs(cpp_files, obj_dir, include_dirs):
         print("\033[31m编译库文件失败，终止构建\033[0m")
@@ -217,4 +250,7 @@ def main():
 
 if __name__ == "__main__":
     enable_vt_mode()
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\033[91m构建被中断!\033[0m")
