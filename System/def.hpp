@@ -13,18 +13,14 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #include "../Core/w32handle.hpp"
 
 namespace w32oop::exceptions {
-    class system_exception : public w32oop_exception {
-    public: system_exception(string d) : w32oop_exception(d) {
-    } system_exception() : w32oop_exception(("Exception: " "system")) {
-    }
-    };
+	w32oop_declare_exception_class(system);
 }
 
 namespace w32oop::def {
 	class w32SystemObject : public w32Object {
-    public:
-        w32SystemObject() = default;
-        ~w32SystemObject() = default;
-    };
+	public:
+		w32SystemObject() = default;
+		~w32SystemObject() = default;
+	};
 }
 

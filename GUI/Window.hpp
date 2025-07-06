@@ -52,8 +52,8 @@ public:
 		lParam = 0;
 		bubble = false;
 		isTrusted = false;
-		isPreventedDefault = false;
-		isStoppedPropagation = false;
+		_defaultPrevented = false;
+		_propagationStopped = false;
 		isNotification = false;
 		result = 0;
 		_source = nullptr;
@@ -74,10 +74,16 @@ public:
 	function<void()> stopPropagation;
 private:
 	LRESULT result;
-	bool isPreventedDefault;
-	bool isStoppedPropagation;
+	bool _defaultPrevented;
+	bool _propagationStopped;
 	bool isNotification;
 public:
+	bool defaultPrevented() const {
+		return _defaultPrevented;
+	}
+	bool propagationStopped() const {
+		return _propagationStopped;
+	}
 	bool is_notification() const {
 		return isNotification;
 	}

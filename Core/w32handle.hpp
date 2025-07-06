@@ -18,7 +18,7 @@ namespace w32oop::core {
 	/// <typeparam name="invalid_exception_class">What will be thown if the handle is not valid?</typeparam>
 	/// <typeparam name="AllowNegativeOneAsValidHandle">If the specific type accepts (-1). For example, in file handle -1 is considered as invalid, but in process handle, -1 is a pseudo handle referring to the current process itself.</typeparam>
 	/// <typeparam name="HandleCloser">The function pointer to close the handle, "CloseHandle" for example.</typeparam>
-	template <typename HandleType, bool AllowNegativeOneAsValidHandle, BOOL(__stdcall* HandleCloser)(HandleType), typename invalid_exception_class>
+	template <typename HandleType, bool AllowNegativeOneAsValidHandle, auto HandleCloser, typename invalid_exception_class>
 	class w32BaseHandle : public w32RAIIObject {
 		HandleType value;
 	public:

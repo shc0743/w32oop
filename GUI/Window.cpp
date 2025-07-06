@@ -461,10 +461,10 @@ LRESULT Window::dispatchMessageToWindowAndGetResult(msg_t msg, WPARAM wParam, LP
 		data.preventDefault();
 	};
 	data.stopPropagation = [&]() {
-		data.isStoppedPropagation = true;
+		data._propagationStopped = true;
 	};
 	data.preventDefault = [&]() {
-		data.isPreventedDefault = true;
+		data._defaultPrevented = true;
 	};
 
 	// 分发消息
@@ -479,12 +479,12 @@ LRESULT Window::dispatchEvent(EventData& data, bool isTrusted, bool shouldBubble
 	data.isTrusted = isTrusted;
 	shouldBubble = shouldBubble && data.bubble;
 	dispatchEventForWindow(data);
-	if (!data.isStoppedPropagation) {
+	if (!data._propagationStopped) {
 		if (shouldBubble && has_parent()) {
 			return parent().dispatchEvent(data);
 		}
 	}
-	if (!data.isPreventedDefault && !data.isNotification) {
+	if (!data._defaultPrevented && !data.isNotification) {
 		UINT original = static_cast<UINT>(data.message);
 		data.result = DefWindowProcW(data.hwnd, original, data.wParam, data.lParam);
 	}
@@ -498,7 +498,7 @@ void Window::dispatchEventForWindow(EventData& data) {
 		for (auto& handler : handlers) {
 			try {
 				handler(data);
-				if (data.isStoppedPropagation) break;
+				if (data._propagationStopped) break;
 			}
 			catch (std::exception& e) {
 				if (get_global_option(Option_DebugMode)) {

@@ -37,10 +37,10 @@ namespace w32oop::concurrency {
         }
 
         // move constructor
-        EventObject(EventObject&& other) : hEvent(move(other.hEvent)) {}
+        EventObject(EventObject&& other) noexcept : hEvent(move(other.hEvent)) {}
 
         // move assignment operator
-        EventObject& operator=(EventObject&& other) {
+        EventObject& operator=(EventObject&& other) noexcept {
             if (this != &other) {
                 hEvent = move(other.hEvent);
             }

@@ -61,8 +61,11 @@ using namespace w32oop::io;
 #ifndef W32USE_NO_SYSTEM
 // Use System
 #include "./System/Service.hpp"
+#include "./System/Registry.hpp"
 using w32oop::system::Service;
 using w32oop::system::ServiceManager;
+using w32oop::system::RegistryKey;
+using w32oop::system::RegistryValue;
 #endif
 
 
