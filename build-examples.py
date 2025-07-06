@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 import ctypes
 from ctypes import wintypes
+import hashlib
 
 def enable_vt_mode():
     """
@@ -55,15 +56,17 @@ def compile_to_objs(cpp_files, output_dir, include_dirs, cl_exe='cl.exe'):
     for cpp_file in cpp_files:
         # 计算输出路径：.cache/build/相对路径/文件名.obj
         rel_path = os.path.relpath(cpp_file, os.getcwd())
-        obj_path = os.path.join(output_dir, rel_path.replace('.cpp', '.obj'))
-        obj_dir = os.path.dirname(obj_path)
+        hash_path = hashlib.sha256(rel_path.encode()).hexdigest()
+        # 取文件名（去掉扩展名）
+        file_name = os.path.splitext(os.path.basename(cpp_file))[0]
+        obj_path = os.path.join(output_dir, f'{file_name}@{hash_path}.obj')
 
-        # 确保目录存在
+        obj_dir = os.path.dirname(obj_path)
         os.makedirs(obj_dir, exist_ok=True)
 
         # 检查是否需要重新编译
         need_compile = True
-        print(f"\n\033[4m\033[96m{obj_path}\033[0m", end='')
+        print(f"\n\033[4m\033[96m{rel_path} --> {file_name}@{hash_path}.obj\033[0m", end='')
         if os.path.exists(obj_path):
             src_mtime = os.path.getmtime(cpp_file)
             obj_mtime = os.path.getmtime(obj_path)
