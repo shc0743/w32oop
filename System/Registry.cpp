@@ -96,6 +96,9 @@ RegistryValue w32oop::system::RegistryKey::get(wstring valueName, bool bNoExpand
 		}
 
 		// mySize 将包含终止null
+		if (mySize < 2) {
+			throw exceptions::registry_query_failed_exception("Failed to get registry value.");
+		}
 		wstring value(reinterpret_cast<wchar_t*>(buffer.get()), (size_t(mySize) - 2) / sizeof(wchar_t));
 		val = value;
 		return RegistryValue(move(val), type);
