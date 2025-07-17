@@ -112,6 +112,7 @@ sys_lib = [
     'user32.lib',
     'gdi32.lib',
     'comdlg32.lib',
+    'comctl32.lib',
     'advapi32.lib',
     'shell32.lib',
     'ole32.lib',
@@ -230,6 +231,7 @@ def main():
 
     # 步骤 2: 编译为中间文件
     print("\n\033[34m编译库文件...\033[0m")
+    print('* 注: 已知问题: 目前只能检测到 .cpp 文件的修改，无法检测 .h 及其他依赖文件的修改，请手动清理缓存以完全重新编译')
     include_dirs = [project_root]  # 添加项目根目录作为包含路径
     if not compile_to_objs(cpp_files, obj_dir, include_dirs):
         print("\033[31m编译库文件失败，终止构建\033[0m")
