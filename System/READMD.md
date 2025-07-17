@@ -1,3 +1,7 @@
-# Event
+# System
 
-Classes to manage win32 Event object. (Not `GUI/Window::EventData`)
+Classes to manage win32 system object.
+
+- Hooks
+- Registry
+- Service
