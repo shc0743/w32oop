@@ -314,7 +314,7 @@ public:
 
 	virtual bool force_focus(DWORD timeout = 10000) final;
 
-	inline void move(int x, int y) {
+	inline void move_to(int x, int y) {
 		validate_hwnd();
 		SetWindowPos(hwnd, nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 	}
