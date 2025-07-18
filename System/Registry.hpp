@@ -108,6 +108,11 @@ namespace w32oop::system {
 		RegistryKey open(wstring subkeyName, REGSAM access = KEY_ALL_ACCESS);
 		// 获取特定键的值，valueName可以为空字符串，表示获取(默认)键的值
 		RegistryValue get(wstring valueName, bool bNoExpand = false) const;
+		// 直接获取特定键的值，valueName可以为空字符串，表示获取(默认)键的值
+		template<typename T>
+		T get_value(wstring valueName, bool bNoExpand = false) const {
+			return get(valueName, bNoExpand).get<T>();
+		}
 		// 设置特定键的值
 		void set(wstring valueName, const RegistryValue& value);
 		// 设置(默认)键的值
