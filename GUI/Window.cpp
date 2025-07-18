@@ -216,6 +216,7 @@ bool Window::created() {
 }
 
 bool Window::force_focus(DWORD timeout) {
+#ifdef W32OOP_GUI_USE_FORCE_FOCUS
 	HWND fg = GetForegroundWindow();
 	if (!fg) return focus(); // fallback to normal focus
 	DWORD pid = 0;
@@ -247,6 +248,7 @@ bool Window::force_focus(DWORD timeout) {
 		Sleep(10);
 	}
 	CloseHandle(hThread);
+#endif
 	return focus();
 }
 
