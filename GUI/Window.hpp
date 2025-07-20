@@ -393,6 +393,9 @@ public:
 	virtual BOOL post(UINT msg, WPARAM wParam = 0, LPARAM lParam = 0) const;
 	// 简化的事件模型，暂时只有冒泡（bubble）模式，不支持捕获（capture）模式
 	virtual LRESULT dispatchEvent(EventData data) final;
+protected:
+	// 默认处理程序
+	virtual LRESULT default_handler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 private:
 	virtual LRESULT dispatchEvent(EventData& data, bool isTrusted, bool shouldBubble) final;
 	virtual void dispatchEventForWindow(EventData& data) final;

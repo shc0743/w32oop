@@ -477,6 +477,10 @@ LRESULT Window::dispatchEvent(EventData data) {
 	return dispatchEvent(data, false, true);
 }
 
+LRESULT Window::default_handler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+	return ::DefWindowProcW(hwnd, message, wParam, lParam);
+}
+
 LRESULT Window::dispatchEvent(EventData& data, bool isTrusted, bool shouldBubble) {
 	data.isTrusted = isTrusted;
 	shouldBubble = shouldBubble && data.bubble;
@@ -488,7 +492,7 @@ LRESULT Window::dispatchEvent(EventData& data, bool isTrusted, bool shouldBubble
 	}
 	if (!data._defaultPrevented && !data.isNotification) {
 		UINT original = static_cast<UINT>(data.message);
-		data.result = DefWindowProcW(data.hwnd, original, data.wParam, data.lParam);
+		data.result = this->default_handler(data.hwnd, original, data.wParam, data.lParam);
 	}
 	return data.result;
 }

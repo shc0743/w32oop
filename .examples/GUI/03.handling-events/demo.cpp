@@ -21,7 +21,7 @@ protected:
     bool unsaved = false;
     void onCreated() {
         edit.set_parent(this);
-        edit.create(L"Write something here...", 300, 200, 10, 10);
+        edit.create(L"Write something here...", 300, 200, 10, 10, Edit::STYLE | ES_MULTILINE | ES_WANTRETURN);
         save.set_parent(this);
         save.create(L"Save", 100, 30, 10, 240);
         text.set_parent(this);
