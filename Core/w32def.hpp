@@ -15,6 +15,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #include <map>
 #include <functional>
 #include <mutex>
+#include <format>
 #include <windows.h>
 #include <windowsx.h>
 
@@ -52,6 +53,10 @@ namespace w32oop {
 			w32oop_exception() : runtime_error(("Exception: " "w32oop")) {}
 		};
 
+		class win32_exception : public w32oop_exception {
+		public:
+			win32_exception(std::string d) : w32oop_exception(d) {}
+		};
 	}
 
 	using namespace core;

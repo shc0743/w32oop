@@ -12,7 +12,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #include "./def.hpp"
 
 namespace w32oop::util {
-    class WindowRAIIHelper {
+    class WindowRAIIHelper : public w32RAIIObject {
     private:
         std::function<void()> fp;
     public:

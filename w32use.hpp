@@ -80,6 +80,10 @@ using w32oop::system::RegistryValue;
 #include "./Utility/StringUtil/converts.hpp"
 #include "./Utility/StringUtil/encodings.hpp"
 #include "./Utility/StringUtil/operations.hpp"
+#ifndef W32USE_NO_ERRCHECK
+#include "./Utility/ErrCheck.hpp"
+using w32oop::util::ErrorChecker;
+#endif
 #endif
 
 

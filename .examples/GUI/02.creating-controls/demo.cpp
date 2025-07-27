@@ -20,17 +20,17 @@ private:
 	Edit textBox;
 	void onCreated() override {
 		// lifecycle hooks
-		text.set_parent(this); // Must call
-		text.create(L"...", 250, 30, 10, 90);
+		text = Static(*this, L"...", 250, 30, 10, 90);
+		text.create();
 
-		btn.set_parent(this); // Must call
-		btn.create(L"Click me!", 100, 30, 10, 10);
+		btn = Button(*this, L"Click me!", 100, 30, 10, 10);
+		btn.create();
 		btn.onClick([this] (EventData& event) {
 			text.text(L"Hello, World!");
 		});
 
-		textBox.set_parent(this); // Must call
-		textBox.create(L"Hello, World!", 200, 30, 10, 50);
+		textBox = Edit(*this, L"Hello, World!", 200, 30, 10, 50);
+		textBox.create();
 		textBox.onChange([this] (EventData& event) {
 			text.text(L"Text area edited");
 		});

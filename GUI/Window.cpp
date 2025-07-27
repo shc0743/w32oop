@@ -869,7 +869,7 @@ HWND BaseSystemWindow::new_window() {
 		setup_info->style,
 		setup_info->x, setup_info->y,
 		setup_info->width, setup_info->height,
-		parent, // 必须提供，否则会失败（逆天Windows控件库。。。）并且不可以变化，否则丢消息。。。
+		parent_window, // 必须提供，否则会失败（逆天Windows控件库。。。）并且不可以变化，否则丢消息。。。
 		(HMENU)(LONG_PTR)(ctlid), GetModuleHandle(NULL), nullptr
 	);
 }

@@ -527,20 +527,27 @@ protected:
 class BaseSystemWindow : public Window {
 public:
 	BaseSystemWindow(HWND parent, const std::wstring& title, int width, int height, int x = 0, int y = 0, LONG style = WS_OVERLAPPED, LONG styleEx = 0, unsigned long long ctlid_p = 0)
-		: ctlid(ctlid_p != 0 ? ctlid_p : ++ctlid_generator), Window(title, width, height, x, y, style, styleEx, HMENU(ctlid_p != 0 ? ctlid_p : static_cast<decltype(ctlid_p)>(ctlid_generator))), parent(parent)
-	{}
-	w32oop_ui_foundation_add_mover(BaseSystemWindow, Window);
+		: ctlid(ctlid_p != 0 ? ctlid_p : ++ctlid_generator), Window(title, width, height, x, y, style, styleEx, HMENU(ctlid_p != 0 ? ctlid_p : static_cast<decltype(ctlid_p)>(ctlid_generator)))
+	{
+		this->parent_window = parent;
+	}
+	BaseSystemWindow& operator=(BaseSystemWindow&& other) noexcept {
+		Window::operator=(std::move(other));
+		this->parent_window = other.parent_window;
+		this->ctlid = other.ctlid;
+		return *this;
+	};;
 	virtual void set_parent(HWND parent) {
-		this->parent = parent;
+		this->parent_window = parent;
 	}
 	virtual void set_parent(Window* pParent) {
-		if (pParent) this->parent = *pParent;
-		else this->parent = nullptr;
+		if (pParent) this->parent_window = *pParent;
+		else this->parent_window = nullptr;
 	}
 protected:
 	static std::atomic<unsigned long long> ctlid_generator;
 	unsigned long long ctlid;
-	HWND parent;
+	HWND parent_window;
 	bool class_registered() const override {
 		return true;
 	}
