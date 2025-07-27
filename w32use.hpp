@@ -66,6 +66,10 @@ using w32oop::system::Service;
 using w32oop::system::ServiceManager;
 using w32oop::system::RegistryKey;
 using w32oop::system::RegistryValue;
+#ifndef W32USE_NO_HOOKS
+// Use Hooks
+#include "./System/Hooks.hpp"
+#endif
 #endif
 
 

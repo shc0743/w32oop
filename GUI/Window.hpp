@@ -522,13 +522,14 @@ protected:
 
 
 #pragma region My Foundation Classes
+#define w32oop_ui_foundation_add_mover(c, base) c& operator=(c&& other) noexcept {base::operator=(std::move(other));return *this;};
 
 class BaseSystemWindow : public Window {
 public:
 	BaseSystemWindow(HWND parent, const std::wstring& title, int width, int height, int x = 0, int y = 0, LONG style = WS_OVERLAPPED, LONG styleEx = 0, unsigned long long ctlid_p = 0)
 		: ctlid(ctlid_p != 0 ? ctlid_p : ++ctlid_generator), Window(title, width, height, x, y, style, styleEx, HMENU(ctlid_p != 0 ? ctlid_p : static_cast<decltype(ctlid_p)>(ctlid_generator))), parent(parent)
-	{
-	}
+	{}
+	w32oop_ui_foundation_add_mover(BaseSystemWindow, Window);
 	virtual void set_parent(HWND parent) {
 		this->parent = parent;
 	}
@@ -575,6 +576,7 @@ public:
 		: BaseSystemWindow(parent, text, width, height, x, y, style) {
 	}
 	Static() : BaseSystemWindow(0, L"", 0, 0, 1, 1, STYLE) {}
+	w32oop_ui_foundation_add_mover(Static, BaseSystemWindow);
 	~Static() override {}
 protected:
 	const wstring get_class_name() const override {
@@ -593,6 +595,7 @@ public:
 		: BaseSystemWindow(parent, text, width, height, x, y, style) {
 	}
 	Edit() : BaseSystemWindow(0, L"", 0, 0, 1, 1, STYLE) {}
+	w32oop_ui_foundation_add_mover(Edit, BaseSystemWindow);
 	~Edit() override {}
 	void onChange(CEventHandler handler) {
 		onChangeHandler = handler;
@@ -665,6 +668,7 @@ public:
 	Button(HWND parent, const std::wstring& text, int width, int height, int x = 0, int y = 0, int ctlid = 0, LONG style = STYLE)
 		: BaseSystemWindow(parent, text, width, height, x, y, style, ctlid) {}
 	Button() : BaseSystemWindow(0, L"", 0, 0, 1, 1, STYLE) {}
+	w32oop_ui_foundation_add_mover(Button, BaseSystemWindow);
 	~Button() override {}
 	void onClick(CEventHandler handler) {
 		onClickHandler = handler;
@@ -696,6 +700,7 @@ public:
 		: Button(parent, text, width, height, x, y, ctlid, style) {
 	}
 	CheckBox() : Button(0, L"", 0, 0, 1, 1, 0, STYLE) {}
+	w32oop_ui_foundation_add_mover(CheckBox, Button);
 	void onCreated() {
 		Button::onCreated();
 	}
@@ -728,6 +733,7 @@ private:
 	}
 };
 
+#undef w32oop_ui_foundation_add_mover
 endpackage;
 #pragma endregion
 

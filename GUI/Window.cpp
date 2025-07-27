@@ -131,17 +131,19 @@ Window::Window() {
 Window& Window::operator=(Window&& other) noexcept {
 	// 检查自赋值
 	if (this != &other) {
+		if (hwnd) {
+			destroy();
+		}
+
 		// 转移所有权
 		hwnd = other.hwnd;
 		_created = other._created;
 		setup_info = other.setup_info;
-		//notification_router = other.notification_router;
 
 		// 重置源对象
 		other.hwnd = nullptr;
 		other._created = false;
 		other.setup_info = nullptr;
-		//other.notification_router = nullptr;
 
 		// 更新窗口的用户数据指针
 		if (hwnd) {
