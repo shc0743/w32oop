@@ -42,7 +42,6 @@ namespace w32oop::core {
 			this->value = value;
 			validate(); // RAII: Throws if invalid
 		}
-		DECLSPEC_NOINLINE
 		virtual ~w32BaseHandle() {
 			if (is_closable()) HandleCloser(value);
 		}
