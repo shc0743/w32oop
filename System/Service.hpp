@@ -69,9 +69,6 @@ namespace w32oop::system {
 		ServiceManager(DWORD dwDesiredAccess = SC_MANAGER_ALL_ACCESS)
 			: scm(OpenSCManagerW(nullptr, nullptr, dwDesiredAccess))
 		{};
-		~ServiceManager() {
-			CloseServiceHandle(scm);
-		};
 	public:
 		Service get(wstring name, DWORD access = SERVICE_ALL_ACCESS);
 		Service create(wstring name, wstring binPath, DWORD startup_type,

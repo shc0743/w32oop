@@ -24,8 +24,8 @@ namespace w32oop::exceptions {
 
 namespace w32oop::def {
 	using w32EventHandle = w32BaseHandle<HANDLE, false, CloseHandle, exceptions::invalid_event_handle_exception>;
-	using w32ProcessHandle = w32BaseHandle<HANDLE, true, CloseHandle, exceptions::invalid_process_handle_exception>;
-	using w32ThreadHandle = w32BaseHandle<HANDLE, true, CloseHandle, exceptions::invalid_thread_handle_exception>;
+	using w32ProcessHandle = w32BaseHandle<HANDLE, true, w32oop::core::ClosePseudoHandle, exceptions::invalid_process_handle_exception>;
+	using w32ThreadHandle = w32BaseHandle<HANDLE, true, w32oop::core::ClosePseudoHandle, exceptions::invalid_thread_handle_exception>;
 
     class w32ConcurrencyObject : public w32Object {
 	public:
