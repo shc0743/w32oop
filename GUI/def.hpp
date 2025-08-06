@@ -22,6 +22,11 @@ namespace w32oop::def {
         w32Window() = default;
         virtual ~w32Window() = default;
     };
+    class w32MenuObject : public w32GUIObject {
+    public:
+        w32MenuObject() = default;
+        ~w32MenuObject() = default;
+    };
 }
 
 namespace w32oop::exceptions {
