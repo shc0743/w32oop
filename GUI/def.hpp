@@ -27,6 +27,11 @@ namespace w32oop::def {
         w32MenuObject() = default;
         ~w32MenuObject() = default;
     };
+    class w32TrayIconObject : public w32GUIObject {
+    public:
+        w32TrayIconObject() = default;
+        ~w32TrayIconObject() = default;
+    };
 }
 
 namespace w32oop::exceptions {
