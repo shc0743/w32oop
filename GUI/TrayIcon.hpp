@@ -50,7 +50,7 @@ namespace w32oop::ui {
 				this->handle_event(ev); // 处理托盘图标事件
 			});
 		}
-		~TrayIcon() {
+		virtual ~TrayIcon() {
 			remove(); // 删除托盘图标
 		}
 
@@ -70,11 +70,11 @@ namespace w32oop::ui {
 		void removeEventListener(UINT message, function<void(EventData&)> handler) {
 			win.removeEventListener(message, handler);
 		}
-		void setIcon(HICON icon) {
+		virtual void setIcon(HICON icon) {
 			nid.hIcon = icon;
 			Shell_NotifyIcon(NIM_MODIFY, &nid); // 修改托盘图标
 		}
-		void setTooltip(const std::wstring& tooltip) {
+		virtual void setTooltip(const std::wstring& tooltip) {
 			wcscpy_s(nid.szTip, tooltip.c_str());
 			Shell_NotifyIcon(NIM_MODIFY, &nid); // 修改托盘提示文本
 		}
@@ -88,14 +88,15 @@ namespace w32oop::ui {
 
 		// 自定义行为
 	protected:
-		void handle_event(EventData& ev);
+		virtual void handle_event(EventData &ev);
+
 	protected:
 		Menu* pMenu = nullptr; // 可选的菜单指针
 	public:
-		Menu* getMenu() const {
+		virtual Menu* getMenu() const {
 			return pMenu; // 获取菜单指针
 		}
-		void setMenu(Menu* menu) {
+		virtual void setMenu(Menu* menu) {
 			pMenu = menu; // 设置菜单指针
 			Shell_NotifyIcon(NIM_MODIFY, &nid); // 更新托盘图标
 		}
@@ -104,27 +105,27 @@ namespace w32oop::ui {
 		function<void(EventData&)> onDblclickHandler = nullptr; // 双击事件处理器
 		function<void(EventData&)> onBalloonClickHandler = nullptr; // 通知点击事件处理器
 	public:
-		function<void(EventData&)>& onClick() {
+		virtual function<void(EventData&)>& onClick() {
 			return onClickHandler; // 获取点击事件处理器
 		}
-		void onClick(function<void(EventData&)> handler) {
+		virtual void onClick(function<void(EventData&)> handler) {
 			onClickHandler = handler; // 设置点击事件处理器
 		}
-		function<void(EventData&)>& onDblclick() {
+		virtual function<void(EventData&)>& onDblclick() {
 			return onDblclickHandler; // 获取双击事件处理器
 		}
-		void onDblclick(function<void(EventData&)> handler) {
+		virtual void onDblclick(function<void(EventData&)> handler) {
 			onDblclickHandler = handler; // 设置双击事件处理器
 		}
-		function<void(EventData&)>& onBalloonClick() {
+		virtual function<void(EventData&)>& onBalloonClick() {
 			return onBalloonClickHandler; // 获取通知点击事件处理器
 		}
-		void onBalloonClick(function<void(EventData&)> handler) {
+		virtual void onBalloonClick(function<void(EventData&)> handler) {
 			onBalloonClickHandler = handler; // 设置通知点击事件处理器
 		}
 
 	public:
-		void showNotification(
+		virtual void showNotification(
 			const std::wstring& title,
 			const std::wstring& message,
 			UINT uFlags = NIIF_INFO,
