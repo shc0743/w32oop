@@ -105,6 +105,7 @@ public:
 		Option_HACCEL,
 		Option_EnableHotkey,
 		Option_EnableGlobalHotkey,
+		Option_QuitWhenWindowAllClosed,
 	};
 	using msg_t = ULONGLONG;
 protected:
@@ -126,7 +127,8 @@ protected:
 			if (shift != other.shift) return shift < other.shift;
 			if (alt != other.alt) return alt < other.alt;
 			if (vk != other.vk) return vk < other.vk;
-			return scope < other.scope;
+			if (scope != other.scope) return scope < other.scope;
+			return source < other.source;
 		}
 	protected:
 		Window* source = nullptr;
@@ -445,7 +447,7 @@ private:
 		DWORD thread_id = 0;
 	};
 	static atomic<size_t> hotkey_global_count;
-	static bool hotkey_handler_contains(bool ctrl, bool shift, bool alt, int vk_code, HotKeyOptions::Scope scope);
+	static bool hotkey_handler_contains(bool ctrl, bool shift, bool alt, int vk_code, HotKeyOptions::Scope scope, Window* source = nullptr);
 	static LRESULT __stdcall handlekb(
 		int vk, bool ctrl, bool alt, bool shift,
 		PKBDLLHOOKSTRUCT pkb,
@@ -497,7 +499,8 @@ protected:
 	virtual void remove_hot_key(
 		bool ctrl, bool alt, bool shift,
 		int vk_code,
-		HotKeyOptions::Scope scope
+		HotKeyOptions::Scope scope,
+		Window* source = nullptr
 	) final;
 	virtual void remove_all_hot_key_on_window() final;
 	virtual void remove_all_hot_key_global() final;

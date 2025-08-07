@@ -730,6 +730,18 @@ LRESULT Window::destroy_handler_internal(WPARAM wParam, LPARAM lParam) {
 		managed.erase(hwnd);
 	}
 	hwnd = nullptr;
+	// 检查
+	if (get_global_option(Option_QuitWhenWindowAllClosed)) {
+		bool should_quit = true;
+		for (auto& i : managed) {
+			if (i.second->owner() == GetCurrentThreadId() && i.second->is_alive()) {
+				should_quit = false;
+				break;
+			}
+		}
+		// 当前线程的所有窗口都已经关闭
+		if (should_quit) PostQuitMessage(0);
+	}
 	return result;
 }
 
@@ -787,12 +799,13 @@ void Window::removeEventListener(msg_t msg, function<void(EventData&)> handler) 
 }
 
 
-bool Window::hotkey_handler_contains(bool ctrl, bool shift, bool alt, int vk_code, HotKeyOptions::Scope scope) {
+bool Window::hotkey_handler_contains(bool ctrl, bool shift, bool alt, int vk_code, HotKeyOptions::Scope scope, Window* source) {
 	lock_guard lock(hotkey_handlers_mutex);
 	for (auto& pair : hotkey_handlers) {
 		auto& item = pair.first;
 		if (item.ctrl == ctrl && item.alt == alt && item.shift == shift && item.vk == vk_code && item.scope == scope) {
-			return true;
+			if (scope != HotKeyOptions::Scope::Windowed) return true;
+			if (item.source == source) return true;
 		}
 	}
 	return false;
@@ -818,19 +831,19 @@ void Window::register_hot_key(
 	options.source = this;
 
 	lock_guard lock(hotkey_handlers_mutex);
-	if (hotkey_handler_contains(ctrl, alt, shift, vk_code, scope)) {
+	if (hotkey_handler_contains(ctrl, alt, shift, vk_code, scope, this)) {
 		throw window_hotkey_duplication_exception();
 	}
 	hotkey_handlers.insert(make_pair(options, callback));
 }
 
-void Window::remove_hot_key(bool ctrl, bool alt, bool shift, int vk_code, HotKeyOptions::Scope scope) {
+void Window::remove_hot_key(bool ctrl, bool alt, bool shift, int vk_code, HotKeyOptions::Scope scope, Window* source) {
 	lock_guard lock(hotkey_handlers_mutex);
 	if (!hotkey_handler_contains(ctrl, alt, shift, vk_code, scope)) {
 		return;
 	}
 	for (auto& pair : hotkey_handlers) {
-		if (pair.first.ctrl == ctrl && pair.first.alt == alt && pair.first.shift == shift && pair.first.vk == vk_code && pair.first.scope == scope) {
+		if (pair.first.ctrl == ctrl && pair.first.alt == alt && pair.first.shift == shift && pair.first.vk == vk_code && pair.first.scope == scope && (source ? (pair.first.source == source) : true)) {
 			hotkey_handlers.erase(pair.first);
 			break;
 		}

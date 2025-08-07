@@ -10,6 +10,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #endif
 
 #include "../Core/w32def.hpp"
+#include "../Core/w32handle.hpp"
 
 namespace w32oop::def {
     class w32GUIObject : public w32Object {
