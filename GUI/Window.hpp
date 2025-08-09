@@ -331,6 +331,10 @@ public:
 		SetWindowPos(hwnd, nullptr, x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
 	}
 
+	inline void resize(const RECT& rc) {
+		resize(rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top);
+	}
+
 	virtual void center();
 	static void center(HWND, HWND parent = NULL);
 
