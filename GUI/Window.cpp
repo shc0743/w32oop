@@ -277,7 +277,9 @@ void Window::center(HWND hwnd, HWND parent) {
 		rect.top = (GetSystemMetrics(SM_CYSCREEN) - h) / 2;
 	}
 	// 移动窗口到指定的位置
-	SetWindowPos(hwnd, HWND_TOP, rect.left, rect.top, 1, 1, SWP_NOACTIVATE | SWP_NOSIZE | SWP_NOZORDER);
+	UINT flags = SWP_NOACTIVATE | SWP_NOSIZE | SWP_NOZORDER;
+	flags |= (IsWindowVisible(hwnd) ? 0 : SWP_HIDEWINDOW); // 防止窗口闪烁
+	SetWindowPos(hwnd, HWND_TOP, rect.left, rect.top, 1, 1, flags);
 }
 
 void Window::close(bool async) {
