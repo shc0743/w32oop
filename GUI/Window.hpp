@@ -747,6 +747,44 @@ private:
 	}
 };
 
+class StatusBar : public BaseSystemWindow {
+public:
+	static const LONG STYLE = WS_CHILD | WS_VISIBLE;
+	StatusBar(HWND parent, const std::wstring& text, int width, int height, int x = 0, int y = 0, LONG style = STYLE)
+		: BaseSystemWindow(parent, text, width, height, x, y, style) {
+	}
+	StatusBar() : BaseSystemWindow(0, L"", 0, 0, 1, 1, STYLE) {}
+	w32oop_ui_foundation_add_mover(StatusBar, BaseSystemWindow);
+	~StatusBar() override {}
+	inline void simple(bool isSimple) {
+		send(SB_SIMPLE, isSimple ? TRUE : FALSE, 0);
+	}
+	wstring text() const override {
+		return get_text(0);
+	}
+	wstring get_text(int part = 0) const {
+		int len = LOWORD(send(SB_GETTEXTLENGTH, part, 0));
+		if (!len || len < 0 || len > 32768) return wstring();
+		auto buffer = std::make_unique<WCHAR[]>(static_cast<size_t>(len) + 1);
+		send(SB_GETTEXTW, part, (LPARAM)buffer.get());
+		return buffer.get();
+	}
+	// Note: Currently the status bar only supports simple text.
+	// Please call simple(true) first so that the text(wstring) can work,
+	// or use send(SB_SETTEXT, wParam, lParam) manually.
+	void text(const wstring& t) override {
+		send(SB_SETTEXT, SB_SIMPLEID, (LPARAM)t.c_str());
+	}
+protected:
+	const wstring get_class_name() const override {
+		return STATUSCLASSNAMEW;
+	}
+protected:
+	virtual void setup_event_handlers() override {
+		WINDOW_EVENT_HANDLER_SUPER(BaseSystemWindow);
+	}
+};
+
 #undef w32oop_ui_foundation_add_mover
 endpackage;
 #pragma endregion
