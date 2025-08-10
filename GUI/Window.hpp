@@ -775,7 +775,7 @@ public:
 		return set_text(SB_SIMPLEID, t);
 	}
 	void set_text(int index, const wstring& t) {
-		send(SB_SETTEXT, index, (LPARAM)t.c_str());
+		send(SB_SETTEXT, LOBYTE(index), (LPARAM)t.c_str());
 	}
 	void set_parts(int count, int* widths) {
 		send(SB_SETPARTS, count, (LPARAM)widths);
