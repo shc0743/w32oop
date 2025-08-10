@@ -769,11 +769,16 @@ public:
 		send(SB_GETTEXTW, part, (LPARAM)buffer.get());
 		return buffer.get();
 	}
-	// Note: Currently the status bar only supports simple text.
-	// Please call simple(true) first so that the text(wstring) can work,
-	// or use send(SB_SETTEXT, wParam, lParam) manually.
+	// Note: To operate a non-simple status bar, 
+	// please use `set_text(int index, const wstring& t)` instead.
 	void text(const wstring& t) override {
-		send(SB_SETTEXT, SB_SIMPLEID, (LPARAM)t.c_str());
+		return set_text(SB_SIMPLEID, t);
+	}
+	void set_text(int index, const wstring& t) {
+		send(SB_SETTEXT, index, (LPARAM)t.c_str());
+	}
+	void set_parts(int count, int* widths) {
+		send(SB_SETPARTS, count, (LPARAM)widths);
 	}
 protected:
 	const wstring get_class_name() const override {
