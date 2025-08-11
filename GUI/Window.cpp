@@ -191,7 +191,7 @@ void Window::create() {
 		DestroyWindow(hwnd);
 		hwnd = nullptr;
 		if (get_global_option(Option_DebugMode)) {
-			fprintf(stderr, "Cannot create window!! %s\n", exc.what());
+			fprintf(stderr, "[w32oop::Window]: Cannot create window!! %s\n", exc.what());
 		}
 		throw;
 	}
