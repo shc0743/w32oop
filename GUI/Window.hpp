@@ -333,7 +333,7 @@ public:
 		resize(rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top);
 	}
 
-	virtual void center();
+	void center(HWND parent = NULL);
 	static void center(HWND, HWND parent = NULL);
 
 	inline void set_topmost(bool isTopmost) {

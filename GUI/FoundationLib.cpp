@@ -1,4 +1,5 @@
 ﻿#include "FoundationLib.hpp"
+using namespace w32oop;
 std::atomic<unsigned long long> w32oop::ui::BaseSystemWindow::ctlid_generator;
 
 
@@ -23,4 +24,10 @@ HWND w32oop::ui::BaseSystemWindow::new_window() {
 	);
 }
 
-
+wstring w32oop::ui::foundation::StatusBar::get_text(int part) const {
+	int len = LOWORD(send(SB_GETTEXTLENGTH, part, 0));
+	if (!len || len < 0 || len > 32768) return wstring();
+	auto buffer = std::make_unique<WCHAR[]>(static_cast<size_t>(len) + 1);
+	send(SB_GETTEXTW, part, (LPARAM)buffer.get());
+	return buffer.get();
+}

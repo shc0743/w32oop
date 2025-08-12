@@ -248,13 +248,7 @@ public:
 	wstring text() const override {
 		return get_text(0);
 	}
-	wstring get_text(int part = 0) const {
-		int len = LOWORD(send(SB_GETTEXTLENGTH, part, 0));
-		if (!len || len < 0 || len > 32768) return wstring();
-		auto buffer = std::make_unique<WCHAR[]>(static_cast<size_t>(len) + 1);
-		send(SB_GETTEXTW, part, (LPARAM)buffer.get());
-		return buffer.get();
-	}
+	wstring get_text(int part = 0) const;
 	// Note: To operate a non-simple status bar, 
 	// please use `set_text(int index, const wstring& t)` instead.
 	void text(const wstring& t) override {
@@ -275,6 +269,67 @@ protected:
 		WINDOW_EVENT_HANDLER_SUPER(BaseSystemWindow);
 	}
 };
+
+
+class TrackBar : public BaseSystemWindow {
+public:
+	static const LONG STYLE = WS_CHILD | WS_VISIBLE | TBS_ENABLESELRANGE | TBS_NOTIFYBEFOREMOVE;
+	TrackBar(HWND parent, int width, int height, int x = 0, int y = 0, LONG style = STYLE)
+		: BaseSystemWindow(parent, L"", width, height, x, y, style) {
+	}
+	TrackBar() : BaseSystemWindow(0, L"", 0, 0, 1, 1, STYLE) {}
+	w32oop_ui_foundation_add_mover(TrackBar, BaseSystemWindow);
+	~TrackBar() override {}
+protected:
+	const wstring get_class_name() const override {
+		return TRACKBAR_CLASSW;
+	}
+protected:
+	virtual void setup_event_handlers() override {
+		WINDOW_EVENT_HANDLER_SUPER(BaseSystemWindow);
+		WINDOW_add_notification_handler(TRBN_THUMBPOSCHANGING, onThumbPosChanging);
+	}
+public:
+	void set_range(int min_, int max_) {
+		send(TBM_SETRANGE, TRUE, MAKELONG(min_, max_));
+	}
+	void set_page_size(int size) {
+		send(TBM_SETPAGESIZE, 0, size);
+	}
+	void set_selection(int min_, int max_) {
+		send(TBM_SETSEL, 0, MAKELONG(min_, max_));
+	}
+	void set_tick_frequency(int freq) {
+		send(TBM_SETTICFREQ, freq, 0);
+	}
+	void set_ticks(int ticks) {
+		send(TBM_SETTIC, 0, ticks);
+	}
+	void pos(int pos) {
+		send(TBM_SETPOS, TRUE, pos);
+	}
+	int pos() const {
+		return (int)send(TBM_GETPOS, 0, 0);
+	}
+protected:
+	function<void(EventData&)> callback;
+	void onThumbPosChanging(EventData& ev) {
+		if (!callback) return;
+        callback(ev);
+		if (ev.defaultPrevented()) ev.returnValue(TRUE);
+	}
+public:
+	void onbeforechange(function<void(EventData&)> callback) {
+		this->callback = callback;
+	}
+};
+
+
+
+
+
+
+
 
 #undef w32oop_ui_foundation_add_mover
 }} // namespace w32oop::ui::foundation

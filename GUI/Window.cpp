@@ -45,8 +45,8 @@ EventData::EventData() {
 EventData::EventData(HWND hwnd, ULONGLONG message, WPARAM wParam, LPARAM lParam, Window* source) {
 	this->hwnd = hwnd;
 	this->message = message;
-    this->wParam = wParam;
-    this->lParam = lParam;
+	this->wParam = wParam;
+	this->lParam = lParam;
 	bubble = false;
 	isTrusted = false;
 	_defaultPrevented = false;
@@ -67,7 +67,7 @@ namespace w32oop::ui::internal {
 		MyHookProc proc = 0;
 		virtual LRESULT callback(int nCode, WPARAM wParam, LPARAM lParam) {
 			if (!proc) return CallNextHookEx(hHook, nCode, wParam, lParam);
-            return proc(nCode, wParam, lParam, user);
+			return proc(nCode, wParam, lParam, user);
 		}
 	};
 }
@@ -283,8 +283,9 @@ bool Window::force_focus(DWORD timeout) {
 	return focus();
 }
 
-void Window::center() {
-	center(hwnd, GetParent(hwnd));
+void Window::center(HWND parent) {
+	if (!parent) parent = GetParent(hwnd);
+	center(hwnd, parent);
 }
 void Window::center(HWND hwnd, HWND parent) {
 	RECT rcParent{};
