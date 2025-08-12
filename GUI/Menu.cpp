@@ -33,7 +33,8 @@ void w32oop::ui::Menu::_build_itermenu(HMENU hMenu, const MenuItem& item, w32Men
 		return;
 	}
 	if (item.type() == MF_STRING) {
-		AppendMenuW(hMenu, item.type(), item.id(), item.text().c_str());
+		UINT extraFlags = (item.checked() ? MF_CHECKED : 0);
+		AppendMenuW(hMenu, item.type() | extraFlags, item.id(), item.text().c_str());
 	}
 	if (item.type() == MF_SEPARATOR) {
 		AppendMenuW(hMenu, item.type(), 0, 0);

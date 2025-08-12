@@ -502,9 +502,10 @@ LRESULT Window::dispatchEvent(EventData& data, bool isTrusted, bool shouldBubble
 	shouldBubble = shouldBubble && data.bubble;
 	dispatchEventForWindow(data);
 	if (!data._propagationStopped) {
-		if (shouldBubble && has_parent()) {
+		if (shouldBubble && has_parent()) try {
 			return parent().dispatchEvent(data);
 		}
+		catch (...) {}
 	}
 	if (!data._defaultPrevented && !data.isNotification) {
 		UINT original = static_cast<UINT>(data.message);
