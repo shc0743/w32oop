@@ -36,6 +36,7 @@ using namespace w32oop::concurrency;
 #include "./GUI/Menu.hpp"
 #include "./GUI/TrayIcon.hpp"
 using namespace w32oop::ui;
+#include "./GUI/FoundationLib.hpp"
 using namespace w32oop::ui::foundation;
 
 #ifndef W32USE_PUBLIC_API_ONLY

@@ -24,7 +24,6 @@ std::recursive_mutex Window::default_font_mutex;
 map<Window::HotKeyOptions, function<void(Window::HotKeyProcData&)>> Window::hotkey_handlers;
 std::recursive_mutex Window::hotkey_handlers_mutex;
 std::atomic<size_t> Window::hotkey_global_count;
-std::atomic<unsigned long long> BaseSystemWindow::ctlid_generator;
 bool Window::hook_is_LL;
 
 
@@ -890,27 +889,4 @@ void Window::remove_all_hot_key_global() {
 	lock_guard lock(hotkey_handlers_mutex);
 	// 直接清空
 	hotkey_handlers.clear();
-}
-
-
-#pragma region My Foundation Classes
-
-HWND BaseSystemWindow::new_window() {
-	auto cls = get_class_name();
-	return CreateWindowExW(
-		setup_info->styleEx,
-		cls.c_str(),
-		setup_info->title.c_str(),
-		setup_info->style,
-		setup_info->x, setup_info->y,
-		setup_info->width, setup_info->height,
-		parent_window, // 必须提供，否则会失败（逆天Windows控件库。。。）并且不可以变化，否则丢消息。。。
-		(HMENU)(LONG_PTR)(ctlid), GetModuleHandle(NULL), nullptr
-	);
-}
-
-#pragma endregion
-
-const char* version_string() {
-	return "w32oop::version_string 5.6.5.2 (C++ Win32 Object-Oriented Programming Framework) GI/5.6";
 }
