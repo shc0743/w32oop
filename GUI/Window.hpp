@@ -334,7 +334,7 @@ public:
 	}
 
 	void center(HWND parent = NULL);
-	static void center(HWND, HWND parent = NULL);
+	static void center(HWND, HWND parent);
 
 	inline void set_topmost(bool isTopmost) {
 		validate_hwnd();
