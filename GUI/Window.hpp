@@ -43,22 +43,15 @@ using namespace exceptions;
 
 class Window;
 
-class EventData final : public w32GUIObject {
+class EventData : public w32GUIObject {
 public:
-	EventData() {
-		hwnd = 0;
-		message = 0;
-		wParam = 0;
-		lParam = 0;
-		bubble = false;
-		isTrusted = false;
-		_defaultPrevented = false;
-		_propagationStopped = false;
-		isNotification = false;
-		result = 0;
-		_source = nullptr;
-	};
-	~EventData() = default;
+	EventData();
+	EventData(
+		HWND hwnd, ULONGLONG message,
+		WPARAM wParam, LPARAM lParam,
+		Window* source = nullptr
+	);
+	virtual ~EventData() = default;
 public:
 	HWND hwnd;
 	ULONGLONG message;
@@ -69,9 +62,18 @@ private:
 	bool isTrusted;
 	Window* _source;
 public:
-	function<void(LRESULT)> returnValue;
-	function<void()> preventDefault;
-	function<void()> stopPropagation;
+	void returnValue(LRESULT _) {
+		result = _;
+	}
+	LRESULT returnValue() const {
+		return result;
+	}
+	void preventDefault() {
+		_defaultPrevented = true;
+	}
+	void stopPropagation() {
+		_propagationStopped = true;
+	}
 private:
 	LRESULT result;
 	bool _defaultPrevented;

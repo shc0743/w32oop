@@ -28,6 +28,36 @@ std::atomic<unsigned long long> BaseSystemWindow::ctlid_generator;
 bool Window::hook_is_LL;
 
 
+
+EventData::EventData() {
+	hwnd = 0;
+	message = 0;
+	wParam = 0;
+	lParam = 0;
+	bubble = false;
+	isTrusted = false;
+	_defaultPrevented = false;
+	_propagationStopped = false;
+	isNotification = false;
+	result = 0;
+	_source = nullptr;
+}
+
+EventData::EventData(HWND hwnd, ULONGLONG message, WPARAM wParam, LPARAM lParam, Window* source) {
+	this->hwnd = hwnd;
+	this->message = message;
+    this->wParam = wParam;
+    this->lParam = lParam;
+	bubble = false;
+	isTrusted = false;
+	_defaultPrevented = false;
+	_propagationStopped = false;
+	isNotification = false;
+	result = 0;
+	_source = source;
+}
+
+
 namespace w32oop::ui::internal {
 	class WindowHotkeyHooker : public w32oop::system::Hook {
 	public:
@@ -451,27 +481,9 @@ LRESULT Window::WndProc(UINT msg, WPARAM wParam, LPARAM lParam) {
 
 LRESULT Window::dispatchMessageToWindowAndGetResult(msg_t msg, WPARAM wParam, LPARAM lParam, bool isNotification) {
 	// 构造EventData
-	EventData data;
-	data.hwnd = hwnd;
-	data.message = msg;
-	data.wParam = wParam;
-	data.lParam = lParam;
+	EventData data(hwnd, msg, wParam, lParam, this);
 	data.isNotification = isNotification;
-	data.bubble = data.isNotification; // 只有通知消息才冒泡，否则会出现问题
-	data._source = this;
-
-	// 设置处理程序
-	data.returnValue = [&](LRESULT value) {
-		data.result = value;
-		// 自动 preventDefault
-		data.preventDefault();
-	};
-	data.stopPropagation = [&]() {
-		data._propagationStopped = true;
-	};
-	data.preventDefault = [&]() {
-		data._defaultPrevented = true;
-	};
+	data.bubble = isNotification; // 只有通知消息才冒泡，否则会出现问题
 
 	// 分发消息
 	return dispatchEvent(data, true, data.bubble);
@@ -507,8 +519,15 @@ void Window::dispatchEventForWindow(EventData& data) {
 		auto& handlers = router.at(data.message);
 		for (auto& handler : handlers) {
 			try {
-				handler(data);
-				if (data._propagationStopped) break;
+				if (handler) handler(data);
+				else if (get_global_option(Option_DebugMode)) {
+					string what = "[WARN]  Invalid event handler function in event handler,"
+						" message=" + to_string(data.message) + ", this=" + 
+						to_string((ULONGLONG)(void*)this) + "\n";
+					fwrite(what.c_str(), sizeof(decltype(what)::value_type), what.size(), stderr);
+					DebugBreak();
+				}
+				if (data.propagationStopped()) break;
 			}
 			catch (std::exception& e) {
 				if (get_global_option(Option_DebugMode)) {
