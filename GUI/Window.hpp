@@ -63,6 +63,7 @@ private:
 	Window* _source;
 public:
 	void returnValue(LRESULT _) {
+		_defaultPrevented = true;
 		result = _;
 	}
 	LRESULT returnValue() const {
