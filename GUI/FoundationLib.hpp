@@ -11,6 +11,8 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 #include "./def.hpp"
 #include "./Window.hpp"
+#include <concepts>
+#include <optional>
 
 
 namespace w32oop::ui {
@@ -27,6 +29,10 @@ public:
 		Window::operator=(std::move(other));
 		this->parent_window = other.parent_window;
 		this->ctlid = other.ctlid;
+		this->old_wndproc = other.old_wndproc;
+		other.parent_window = nullptr;
+		other.ctlid = 0;
+		other.old_wndproc = nullptr;
 		return *this;
 	};;
 	virtual void set_parent(HWND parent) {
@@ -42,12 +48,13 @@ protected:
 	HWND parent_window;
 	bool class_registered() const override;
 	HWND new_window() override;
-	// 注意，对已经注册的Win32控件类，无法使用RegisterClassExW
-	// 也就是说，我们的WndProc将不会被调用
-	// 因此只能使用WINDOW_add_notification_handler而不是WINDOW_add_handler
+	WNDPROC old_wndproc = NULL;
 	virtual void setup_event_handlers() override {
 		// 此为顶层控件类，不需要继续super
+		old_wndproc = (WNDPROC)GetWindowLongPtrW(hwnd, GWLP_WNDPROC);
+		SetWindowLongPtrW(hwnd, GWLP_WNDPROC, (LONG_PTR)Window::StaticWndProc);
 	}
+	virtual LRESULT default_handler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) override;
 
 public:
 	using CEventHandler = function<void(EventData&)>;
@@ -315,7 +322,7 @@ protected:
 	function<void(EventData&)> callback;
 	void onThumbPosChanging(EventData& ev) {
 		if (!callback) return;
-        callback(ev);
+		callback(ev);
 		if (ev.defaultPrevented()) ev.returnValue(TRUE);
 	}
 public:
@@ -325,6 +332,84 @@ public:
 };
 
 
+
+
+#pragma region Dialogs
+
+template<typename T>
+concept InputDialog_ValueTypes = std::same_as<T, std::wstring> ||
+(std::is_integral_v<T> && (sizeof(T) <= sizeof(std::int64_t)));
+
+// One-time use. To reuse please create new instance
+class InputDialog : public Window {
+public:
+	InputDialog(wstring title = L"Input", int width = 320, int height = 145) : 
+		Window(title, width, height, 0, 0, WS_POPUP | WS_SYSMENU | WS_SIZEBOX) {};
+	
+protected:
+	wstring prompt;
+	Edit editBox;
+	Button accept, reject;
+	HFONT promptFont = NULL;
+	bool rejected = true;
+	bool isActive = true;
+
+	void onCreated() override;
+	void onDestroy() override;
+	void paint(EventData& ev);
+	void onHittest(EventData& ev);
+	void doLayout(EventData& ev);
+	void onNcCalcSize(EventData& ev);
+	void onNcActivate(EventData& ev);
+	void onLButtonUp(EventData& ev);
+
+	virtual void setup_event_handlers() override {
+		WINDOW_add_handler(WM_PAINT, paint);
+		WINDOW_add_handler(WM_NCHITTEST, onHittest);
+		WINDOW_add_handler(WM_SIZING, doLayout);
+		WINDOW_add_handler(WM_SIZE, doLayout);
+		WINDOW_add_handler(WM_NCCALCSIZE, onNcCalcSize);
+		WINDOW_add_handler(WM_NCACTIVATE, onNcActivate);
+		WINDOW_add_handler(WM_LBUTTONUP, onLButtonUp);
+	}
+
+	template <InputDialog_ValueTypes value_type>
+	std::wstring str(value_type value) {
+		if constexpr (std::same_as<value_type, std::wstring>) return value;
+		else return std::to_wstring(value);
+	}
+public:
+	template <InputDialog_ValueTypes value_type>
+	std::optional<value_type> getInput(std::wstring prompt = L"", value_type default_value = value_type{}) {
+		// 设置UI元素显示提示和默认值
+		if (!prompt.empty()) setPrompt(prompt);
+		setText(str(default_value));
+
+		show();
+		run(this);
+
+		if (rejected) return nullopt;
+		if constexpr (std::same_as<value_type, std::wstring>) return getText();
+		if (getText().starts_with(L"0x") || getText().starts_with(L"0X"))
+			return static_cast<value_type>(wcstoll(getText().c_str() + 2, NULL, 16));
+		return static_cast<value_type>(wcstoll(getText().c_str(), NULL, 10));
+	}
+	wstring getPrompt() const { return prompt; }
+	void setPrompt(wstring new_value) { prompt = new_value; update(); }
+	wstring getText() const { return editBox.text(); }
+	void setText(wstring text) { editBox.text(text); }
+	void setMultiple(bool multiple = true);
+	void setAcceptButtonText(wstring t) { accept.text(t); }
+	void setRejectButtonText(wstring t) { reject.text(t); }
+	void setButtonsText(wstring a, wstring b) {
+		setAcceptButtonText(a);
+		setRejectButtonText(b);
+	}
+	void setPasswordChar(TCHAR c) { editBox.password_char(c); }
+};
+
+
+#pragma endregion
 
 
 
