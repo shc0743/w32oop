@@ -76,7 +76,7 @@ namespace w32oop::ui::internal {
 const wstring Window::get_class_name() const
 {
 	auto& type = typeid(*this);
-	return w32oop::util::str::converts::str_wstr(
+	std::wstring className = w32oop::util::str::converts::str_wstr(
 		type.name() + "#(C++ Window):"s +
 #ifdef _MSVC_LANG
 		type.raw_name()
@@ -85,6 +85,16 @@ const wstring Window::get_class_name() const
 #endif
 		+ "#Window"
 	);
+
+	const size_t maxLength = 255;
+	const std::wstring suffix = L"#Window";
+
+	if (className.length() > maxLength) {
+		// 截断到允许的长度(255 - 7个字符后缀)
+		className = className.substr(0, maxLength - suffix.length()) + suffix;
+	}
+
+	return className;
 }
 
 void Window::set_default_font(HFONT font) {
