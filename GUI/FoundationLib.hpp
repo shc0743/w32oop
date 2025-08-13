@@ -353,6 +353,7 @@ protected:
 	HFONT promptFont = NULL;
 	bool rejected = true;
 	bool isActive = true;
+	wstring textBuffer;
 
 	void onCreated() override;
 	void onDestroy() override;
@@ -371,6 +372,7 @@ protected:
 		WINDOW_add_handler(WM_NCCALCSIZE, onNcCalcSize);
 		WINDOW_add_handler(WM_NCACTIVATE, onNcActivate);
 		WINDOW_add_handler(WM_LBUTTONUP, onLButtonUp);
+		WINDOW_add_handler(WM_CLOSE, [this](EventData&) { textBuffer = editBox.text(); });
 	}
 
 	template <InputDialog_ValueTypes value_type>
@@ -396,7 +398,7 @@ public:
 	}
 	wstring getPrompt() const { return prompt; }
 	void setPrompt(wstring new_value) { prompt = new_value; update(); }
-	wstring getText() const { return editBox.text(); }
+	wstring getText() const { return textBuffer; }
 	void setText(wstring text) { editBox.text(text); }
 	void setMultiple(bool multiple = true);
 	void setAcceptButtonText(wstring t) { accept.text(t); }
