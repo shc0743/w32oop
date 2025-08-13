@@ -1,4 +1,5 @@
 ﻿#include "./Menu.hpp"
+#include "../Utility/RAII.hpp"
 using namespace w32oop;
 using namespace w32oop::ui;
 
@@ -53,6 +54,7 @@ int w32oop::ui::Menu::pop(long x, long y, bool run_handler) {
 	if (!tempWindow) {
 		throw exceptions::window_creation_failure_exception("Failed to create temporary window for menu popup.");
 	}
+	w32oop::util::RAIIHelper _([tempWindow] { DestroyWindow(tempWindow); }); // 销毁临时窗口
 	ShowWindow(tempWindow, SW_NORMAL);
 	SetForegroundWindow(tempWindow);
 	int result = TrackPopupMenu(
@@ -65,7 +67,6 @@ int w32oop::ui::Menu::pop(long x, long y, bool run_handler) {
 	if (run_handler) {
 		if (result != 0) run(result);
 	}
-	DestroyWindow(tempWindow); // 销毁临时窗口
 	return result;
 }
 

@@ -18,6 +18,7 @@ std::vector<HWND> w32oop::ui::GetAllChildWindows(HWND hParent) {
 
 
 unordered_map<HWND, Window*> Window::managed;
+std::recursive_mutex Window::managed_lock;
 map<Window::GlobalOptions, long long> Window::global_options;
 HFONT Window::default_font;
 std::recursive_mutex Window::default_font_mutex;
@@ -167,12 +168,14 @@ Window::Window() {
 	setup_info = nullptr;
 }
 
-Window& Window::operator=(Window&& other) noexcept {
+DECLSPEC_NOINLINE Window& Window::operator=(Window&& other) noexcept {
 	// 检查自赋值
 	if (this != &other) {
 		if (hwnd) {
 			destroy();
 		}
+
+		if (setup_info) delete setup_info;
 
 		// 转移所有权
 		hwnd = other.hwnd;
@@ -186,8 +189,9 @@ Window& Window::operator=(Window&& other) noexcept {
 
 		// 更新窗口的用户数据指针
 		if (hwnd) {
-			SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+			lock_guard gg(managed_lock);
 			managed[hwnd] = this;
+			SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 		}
 	}
 	return *this;
@@ -197,23 +201,17 @@ void Window::create() {
 	if (_created) throw window_already_initialized_exception();
 	if (!setup_info) throw window_illegal_state_exception();
 	transfer_ownership();
-	try {
-		setup_event_handlers();
-	}
-	catch (std::exception&) {
-		throw;
-	}
 	class_name = get_class_name();
 	register_class_if_needed();
 	if (get_global_option(Option_DebugMode)) {
-		fwprintf(stdout, L"[w32oop::Window]: Creating window `%s` with style `%d` and title `%s`\n",
+		fwprintf(stdout, L"[w32oop::ui::Window]: Creating window `%s` with style `%d` and title `%s`\n",
 			class_name.c_str(), int(setup_info->style), setup_info->title.c_str());
 		fflush(stdout);
 	}
 	hwnd = new_window();
 	if (!hwnd) {
 		if (get_global_option(Option_DebugMode)) {
-			fprintf(stderr, "[w32oop::Window]: Cannot create window!! %d [where] CLASS_NAME = ", GetLastError());
+			fprintf(stderr, "[w32oop::ui::Window]: Cannot create window!! %d [where] CLASS_NAME = ", GetLastError());
 			fwprintf(stderr, L"%ls\n", class_name.c_str());
 		}
 		throw window_creation_failure_exception();
@@ -221,7 +219,9 @@ void Window::create() {
 	try {
 		delete setup_info;
 		setup_info = nullptr;
+		lock_guard gg(managed_lock);
 		managed[hwnd] = this;
+		setup_event_handlers();
 		m_onCreated();
 		onCreated();
 		_created = true;
@@ -230,7 +230,7 @@ void Window::create() {
 		DestroyWindow(hwnd);
 		hwnd = nullptr;
 		if (get_global_option(Option_DebugMode)) {
-			fprintf(stderr, "[w32oop::Window]: Cannot create window!! %s\n", exc.what());
+			fprintf(stderr, "[w32oop::ui::Window]: Cannot create window: %s\n", exc.what());
 		}
 		throw;
 	}
@@ -392,6 +392,17 @@ void Window::remove_style_ex(LONG_PTR styleEx) {
 	SetWindowLongPtr(hwnd, GWL_EXSTYLE, currentStyleEx & ~styleEx);
 }
 
+void Window::destroy() {
+	validate_hwnd();
+	if (!DestroyWindow(hwnd)) {
+		if (get_global_option(Option_DebugMode)) {
+			fprintf(stderr, "[w32oop::ui::Window] Failed to destroy window %p\n", hwnd);
+			DebugBreak();
+		}
+		throw window_destroy_failure_exception("Unable to destroy window");
+	}
+}
+
 void Window::override_style(LONG_PTR style) {
 	validate_hwnd();
 	SetWindowLongPtr(hwnd, GWL_STYLE, style);
@@ -476,7 +487,7 @@ LRESULT Window::WndProc(UINT msg, WPARAM wParam, LPARAM lParam) {
 			notifCode = hdr.code;
 		}
 		try {
-			Window* target = managed.at(targetWindow);
+			Window* target = managed.at(targetWindow); // 不需要锁
 			return target->dispatchMessageToWindowAndGetResult(msg_t(notifCode + WINDOW_NOTIFICATION_CODES), (UINT)msg, lParam, true);
 		}
 		catch (std::out_of_range&) {
@@ -532,7 +543,7 @@ void Window::dispatchEventForWindow(EventData& data) {
 			try {
 				if (handler) handler(data);
 				else if (get_global_option(Option_DebugMode)) {
-					string what = "[WARN]  Invalid event handler function in event handler,"
+					string what = "[w32oop::ui::Window] [WARN]  Invalid event handler function in event handler,"
 						" message=" + to_string(data.message) + ", this=" + 
 						to_string((ULONGLONG)(void*)this) + "\n";
 					fwrite(what.c_str(), sizeof(decltype(what)::value_type), what.size(), stderr);
@@ -542,7 +553,7 @@ void Window::dispatchEventForWindow(EventData& data) {
 			}
 			catch (std::exception& e) {
 				if (get_global_option(Option_DebugMode)) {
-					string what = "[ERROR] Unexpected exception in event handler: ";
+					string what = "[w32oop::ui::Window] [ERROR] Unexpected exception in event handler: ";
 					what += e.what();
 					fwrite(what.c_str(), sizeof(decltype(what)::value_type), what.size(), stderr);
 					DebugBreak();
@@ -570,8 +581,11 @@ Window::~Window() {
 		setup_info = nullptr;
 	}
 	if (!hwnd) return;
-	if (managed.contains(hwnd)) {
-		managed.erase(hwnd);
+	{
+		lock_guard gg(managed_lock);
+		if (managed.contains(hwnd)) {
+			managed.erase(hwnd);
+		}
 	}
 	destroy();
 }
@@ -737,13 +751,11 @@ void Window::m_onCreated() {
 	addEventListener(WM_SYSCOLORCHANGE, [this](const EventData& data) {
 		// 转发到控件。
 		// https://learn.microsoft.com/zh-cn/windows/win32/controls/control-messages
+		if (GetParent(hwnd)) return; // 防止无限转发
 		auto controls = GetAllChildWindows(hwnd);
 		for (auto hwnd : controls) {
 			PostMessage(hwnd, WM_SYSCOLORCHANGE, data.wParam, data.lParam);
 		}
-	});
-	addEventListener(WM_MENU_CHECKED, [this](const EventData& data) {
-
 	});
 }
 
@@ -758,13 +770,16 @@ LRESULT Window::destroy_handler_internal(WPARAM wParam, LPARAM lParam) {
 	// 必须清理钩子
 	remove_all_hot_key_on_window();
 	// 清理 managed
-	if (managed.contains(hwnd)) {
-		managed.erase(hwnd);
+	{
+		lock_guard gg(managed_lock);
+		if (managed.contains(hwnd)) {
+			managed.erase(hwnd);
+		}
 	}
-	hwnd = nullptr;
 	// 检查
 	if (get_global_option(Option_QuitWhenWindowAllClosed)) {
 		bool should_quit = true;
+		lock_guard gg(managed_lock);
 		for (auto& i : managed) {
 			if (i.second->owner() == GetCurrentThreadId() && i.second->is_alive()) {
 				should_quit = false;
@@ -774,6 +789,7 @@ LRESULT Window::destroy_handler_internal(WPARAM wParam, LPARAM lParam) {
 		// 当前线程的所有窗口都已经关闭
 		if (should_quit) PostQuitMessage(0);
 	}
+	hwnd = nullptr;
 	return result;
 }
 

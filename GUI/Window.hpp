@@ -142,6 +142,7 @@ protected:
 	};
 private:
 	static unordered_map<HWND, Window*> managed; // Internal -- DO NOT access it
+	static std::recursive_mutex managed_lock;
 	static recursive_mutex default_font_mutex;
 	static HFONT default_font;
 	static map<GlobalOptions, long long> global_options;
@@ -238,18 +239,17 @@ public:
 	Window& operator=(const Window&) = delete;
 
 	Window(Window&& other) noexcept :
-		hwnd(other.hwnd)
-		,setup_info(other.setup_info)
-		//,notification_router(other.notification_router)
+		hwnd(other.hwnd), setup_info(other.setup_info)
 	{
 		other.hwnd = nullptr;
-		//other.notification_router = nullptr;
+		other.setup_info = nullptr;
 		if (hwnd) {
 			SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+			lock_guard gg(managed_lock);
 			managed[hwnd] = this;
 		}
 	}
-	Window& operator=(Window&& other) noexcept;
+	DECLSPEC_NOINLINE Window& operator=(Window&& other) noexcept;
 
 	virtual operator HWND() const final {
 		return hwnd;
@@ -290,6 +290,7 @@ public:
 		validate_hwnd();
 		HWND parent = GetParent(hwnd);
 		if (!parent) throw window_has_no_parent_exception();
+		lock_guard gg(managed_lock);
 		if (managed.contains(parent)) return *(managed.at(parent));
 		throw window_has_no_parent_exception();
 	}
@@ -297,6 +298,7 @@ public:
 	// 窗口操作方法
 	virtual void update() {
 		validate_hwnd();
+		InvalidateRect(hwnd, NULL, TRUE);
 		UpdateWindow(hwnd);
 	}
 
@@ -383,10 +385,7 @@ public:
 	virtual void remove_style_ex(LONG_PTR styleEx) final;
 
 protected:
-	virtual void destroy() {
-		validate_hwnd();
-		DestroyWindow(hwnd);
-	}
+	virtual void destroy();
 
 	virtual void override_style(LONG_PTR style) final;
 	virtual void override_style_ex(LONG_PTR styleEx) final;
@@ -417,8 +416,10 @@ protected:
 
 private:
 	virtual void m_onCreated() final;
+protected:
 	// 静态消息处理函数
 	static LRESULT CALLBACK StaticWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+private:
 	// 消息处理函数
 	LRESULT WndProc(UINT msg, WPARAM wParam, LPARAM lParam);
 	LRESULT dispatchMessageToWindowAndGetResult(msg_t msg, WPARAM wParam, LPARAM lParam, bool isNotification = false);
