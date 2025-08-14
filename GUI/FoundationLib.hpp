@@ -388,6 +388,7 @@ public:
 		setText(str(default_value));
 
 		show();
+		editBox.focus();
 		run(this);
 
 		if (rejected) return nullopt;
