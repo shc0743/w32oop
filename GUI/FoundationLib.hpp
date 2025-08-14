@@ -180,6 +180,7 @@ public:
 	void onClick(CEventHandler handler) {
 		onClickHandler = handler;
 	}
+	HCURSOR cursor;
 protected:
 	const wstring get_class_name() const override {
 		return L"Button";
@@ -192,11 +193,17 @@ private:
 			onClickHandler(data);
 		}
 	}
+	void onSetCursor(EventData& ev) {
+		ev.returnValue(TRUE);
+		SetCursor(cursor);
+	}
 protected:
 	// for Win32 controls, we use the notification instead of the event
 	virtual void setup_event_handlers() override {
 		WINDOW_EVENT_HANDLER_SUPER(BaseSystemWindow);
 		WINDOW_add_notification_handler(BN_CLICKED, onBtnClicked);
+		cursor = LoadCursor(NULL, IDC_HAND);
+		WINDOW_add_handler(WM_SETCURSOR, onSetCursor);
 	}
 };
 
@@ -362,6 +369,7 @@ protected:
 	void doLayout(EventData& ev);
 	void onNcCalcSize(EventData& ev);
 	void onNcActivate(EventData& ev);
+	void onSetCursor(EventData& ev);
 	void onLButtonUp(EventData& ev);
 
 	virtual void setup_event_handlers() override {
@@ -371,8 +379,13 @@ protected:
 		WINDOW_add_handler(WM_SIZE, doLayout);
 		WINDOW_add_handler(WM_NCCALCSIZE, onNcCalcSize);
 		WINDOW_add_handler(WM_NCACTIVATE, onNcActivate);
+		WINDOW_add_handler(WM_SETCURSOR, onSetCursor);
 		WINDOW_add_handler(WM_LBUTTONUP, onLButtonUp);
 		WINDOW_add_handler(WM_CLOSE, [this](EventData&) { textBuffer = editBox.text(); });
+	}
+
+	inline bool hittest_closeButton(int32_t x, int32_t y, int32_t w, int32_t h) {
+		return (x >= w - 40 && x <= w) && (y >= 0 && y < 40);
 	}
 
 	template <InputDialog_ValueTypes value_type>

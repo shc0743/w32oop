@@ -54,13 +54,13 @@ void w32oop::ui::foundation::InputDialog::onCreated() {
 		if (ES_MULTILINE & GetWindowLongPtr(editBox, GWL_STYLE)) return;
 		ev.preventDefault();
 		rejected = false;
-        close();
+		close();
 	}, HotKeyOptions::Windowed);
 
 	register_hot_key(false, false, false, VK_ESCAPE, [this](HotKeyProcData& ev) {
 		ev.preventDefault();
 		rejected = true;
-        close();
+		close();
 	}, HotKeyOptions::Windowed);
 
 	// 在这里创建 paint 中所需的字体。
@@ -110,7 +110,7 @@ void w32oop::ui::foundation::InputDialog::paint(EventData& ev) {
 		COLORREF oldColor = SetTextColor(dc, RGB(0, 0, 0));  // 黑色文本
 		int oldBkMode = SetBkMode(dc, TRANSPARENT);          // 透明背景
 
-		RECT textRect = { 10, 1, w - 20, 39 };
+		RECT textRect = { 10, 1, w - 50, 39 };
 		DrawTextW(dc, text().c_str(), -1, &textRect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 		textRect = { 10, 45, w - 20, 65 };
 		DrawTextW(dc, prompt.c_str(), -1, &textRect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
@@ -146,7 +146,7 @@ void w32oop::ui::foundation::InputDialog::onHittest(EventData& ev) {
 	else if (x >= 0 && x <= w && (y >= h - 10 && y <= h)) ret = HTBOTTOM;
 	else if ((x >= 0 && x <= 10) && (y >= 0 && y <= h)) ret = HTLEFT;
 	else if ((x >= w - 10 && x <= w) && (y >= 0 && y <= h)) ret = HTRIGHT;
-	else if ((x >= w - 40 && x <= w) && (y >= 0 && y < 40)) ret = HTCLIENT;
+	else if (hittest_closeButton(x, y, w, h)) ret = HTCLIENT;
 	else if (y <= 40) ret = HTCAPTION;
 	else ret = HTCLIENT;
 	ev.returnValue(ret);
@@ -174,13 +174,29 @@ void w32oop::ui::foundation::InputDialog::onNcActivate(EventData& ev) {
 	ev.returnValue(TRUE);
 }
 
+void w32oop::ui::foundation::InputDialog::onSetCursor(EventData& ev) {
+	if (LOWORD(ev.lParam) == HTCLIENT) {
+		RECT rc{}; GetClientRect(hwnd, &rc);
+		auto w = rc.right - rc.left, h = rc.bottom - rc.top;
+		POINT pt{}; GetCursorPos(&pt);
+		ScreenToClient(hwnd, &pt);
+		auto x = pt.x, y = pt.y;
+		if (hittest_closeButton(x, y, w, h)) {
+			ev.returnValue(TRUE);
+			static HCURSOR hHand = NULL;
+			if (!hHand) hHand = LoadCursorW(NULL, IDC_HAND);
+			SetCursor(hHand);
+		}
+	}
+}
+
 void w32oop::ui::foundation::InputDialog::onLButtonUp(EventData& ev) {
 	ev.preventDefault();
 	RECT rc{}; GetWindowRect(hwnd, &rc);
 	auto w = rc.right - rc.left, h = rc.bottom - rc.top;
 	POINT pt{ GET_X_LPARAM(ev.lParam), GET_Y_LPARAM(ev.lParam) };
 	auto x = pt.x, y = pt.y;
-	if ((x >= w - 40 && x <= w) && (y >= 0 && y < 40)) {
+	if (hittest_closeButton(x, y, w, h)) {
 		close();
 	}
 }
