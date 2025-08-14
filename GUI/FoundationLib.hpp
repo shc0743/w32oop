@@ -180,7 +180,7 @@ public:
 	void onClick(CEventHandler handler) {
 		onClickHandler = handler;
 	}
-	HCURSOR cursor;
+	HCURSOR cursor = NULL;
 protected:
 	const wstring get_class_name() const override {
 		return L"Button";
@@ -406,9 +406,11 @@ public:
 
 		if (rejected) return nullopt;
 		if constexpr (std::same_as<value_type, std::wstring>) return getText();
-		if (getText().starts_with(L"0x") || getText().starts_with(L"0X"))
-			return static_cast<value_type>(wcstoll(getText().c_str() + 2, NULL, 16));
-		return static_cast<value_type>(wcstoll(getText().c_str(), NULL, 10));
+		else {
+			if (getText().starts_with(L"0x") || getText().starts_with(L"0X"))
+				return static_cast<value_type>(wcstoll(getText().c_str() + 2, NULL, 16));
+			return static_cast<value_type>(wcstoll(getText().c_str(), NULL, 10));
+		}
 	}
 	wstring getPrompt() const { return prompt; }
 	void setPrompt(wstring new_value) { prompt = new_value; update(); }

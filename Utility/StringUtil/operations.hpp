@@ -109,5 +109,14 @@ namespace w32oop::util::str::operations {
         dest.push_back(substring);
         return dest;
     }
-    
+    /// <summary>
+    /// 移除字符串前后的空白字符。
+    /// </summary>
+    /// <param name="str">欲移除的字符串</param>
+    inline void trim(std::wstring& str) {
+        // 删除前面的空白
+        str.erase(0, str.find_first_not_of(L" \t\r\n"));
+        // 删除后面的空白
+        str.erase(str.find_last_not_of(L" \t\r\n") + 1);
+    }
 }

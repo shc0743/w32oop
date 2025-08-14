@@ -56,8 +56,9 @@ using namespace w32oop::io;
 
 #ifndef W32USE_NO_NETWORK
 // Use Network
-#include "./Network/WinINetTask.hpp"
-#include "./Network/DownloadTask.hpp"
+#include "./Network/HttpResponse.hpp"
+#include "./Network/HttpRequest.hpp"
+using namespace w32oop::network;
 #endif
 
 

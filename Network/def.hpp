@@ -10,5 +10,36 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #endif
 
 #include "../Core/w32def.hpp"
+#include "../Core/w32handle.hpp"
+#include <winhttp.h>
+
+
+namespace w32oop::exceptions {
+	w32oop_declare_exception_class(network);
+	w32oop_declare_exception_class_from(invalid_network_handle, network_exception);
+	w32oop_declare_exception_class_from(network_request_failed, network_exception);
+	w32oop_declare_exception_class_from(network_io, network_exception);
+	w32oop_declare_exception_class_from(bad_url, network_exception);
+	w32oop_declare_exception_class_from(network_request_not_supported, network_exception);
+}
+
+namespace w32oop::def {
+	class w32NetworkObject : public w32Object {
+	public:
+		w32NetworkObject() = default;
+		~w32NetworkObject() = default;
+	};
+	using w32InternetHandle = w32BaseHandle<HINTERNET, false, WinHttpCloseHandle, exceptions::invalid_network_handle_exception>;
+
+}
+
+
+namespace w32oop::network {
+	class HttpRequest;
+	class HttpResponse;
+	
+	// 使用 vector<pair> 而不是 map 以允许名称相同的多个值
+	using HttpHeaders = std::vector<std::pair<std::wstring, std::wstring>>;
+}
 
 

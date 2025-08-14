@@ -6,9 +6,6 @@
 #define _UNICODE 1
 #include <w32use.hpp>
 #include <fstream>
-// To simplify the code, we included a CPP
-// however, never do it in a real project!
-#include "utfutil.cpp"
 #include <CommCtrl.h>
 
 #pragma comment(lib, "user32.lib")
@@ -186,7 +183,7 @@ namespace MyDemo {
     public:
         void save_session(EventData& event) {
             // 保存到session_file
-            string u8 = ConvertUTF16ToUTF8(txtEditor.text());
+            string u8 = w32oop::util::str::encodings::utf16_utf8(txtEditor.text());
             DWORD bytesWritten = 0;
             // 写入文件路径
             CloseHandle(hSessionLock);
@@ -232,7 +229,7 @@ namespace MyDemo {
                 }
             }
             if (ReadFile(hFile, buffer, 1024 * 1024 * 32, &bytesRead, nullptr)) {
-                wstring u16 = ConvertUTF8ToUTF16(buffer);
+                wstring u16 = w32oop::util::str::encodings::utf8_utf16(buffer);
                 txtEditor.text(u16);
             } else {
                 MessageBoxW(hwnd, (L"对不起！我读不出来这个文件！原因是：" + to_wstring(GetLastError())).c_str(), L"Sorry!", MB_ICONERROR);
@@ -296,7 +293,7 @@ namespace MyDemo {
                 MessageBoxW(hwnd, (L"对不起！我不能保存这个文件！原因是：" + to_wstring(GetLastError())).c_str(), L"Sorry!", MB_ICONERROR); 
                 return;
             }
-            string u8 = ConvertUTF16ToUTF8(txtEditor.text());
+            string u8 = w32oop::util::str::encodings::utf16_utf8(txtEditor.text());
             DWORD bytesWritten = 0;
             if (!WriteFile(hFile, u8.c_str(), u8.length(), &bytesWritten, nullptr)) {
                 MessageBoxW(hwnd, (L"对不起！我写不了这个文件！原因是：" + to_wstring(GetLastError())).c_str(), L"Sorry!", MB_ICONERROR);
