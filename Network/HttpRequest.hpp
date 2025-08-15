@@ -38,6 +38,7 @@ namespace w32oop::network {
 	public:
 		wstring url() const { return input; }
 		wstring method() const { return options.method; }
+		void method(wstring method) { options.method = method; }
 		HttpHeaders& headers() { return options.headers; }
 		const HttpHeaders& headers() const { return options.headers; }
 		shared_ptr<HttpBody> body() { return options.body; }

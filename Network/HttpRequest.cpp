@@ -159,11 +159,16 @@ HttpResponse w32oop::network::fetch(HttpRequest request) {
 			continue;
 		}
 		if (readTotal > maxRead) {
-			// 转移到文件缓冲区
 			if (request.file_buffer_file_name().empty()) throw exceptions::network_io_exception("File buffer size exceeded and no disk file specified");
 			fileHandle = CreateFileW(request.file_buffer_file_name().c_str(), GENERIC_WRITE,
 				0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 			isFileBuffer = true;
+			// 转移到文件缓冲区
+			DWORD written = 0;
+			if (!WriteFile(fileHandle, memoryBuffer.data(), (DWORD)memoryBuffer.size(), &written, nullptr)) {
+				throw exceptions::network_io_exception("Unable to write memory buffer to file");
+			}
+			memoryBuffer.clear();
 			goto ifb;
 		}
 		// 读取到内存缓冲区(memoryBuffer)
