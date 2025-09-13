@@ -72,12 +72,14 @@ void w32oop::ui::foundation::InputDialog::onCreated() {
 	);
 
 	// 布局控件
+	isCreated = true;
 	post(WM_SIZE);
 }
 
 void w32oop::ui::foundation::InputDialog::onDestroy() {
 	// 在这里销毁 GDI 对象。
 	DeleteObject(promptFont);
+	isCreated = false;
 }
 
 void w32oop::ui::foundation::InputDialog::paint(EventData& ev) {

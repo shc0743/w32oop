@@ -360,6 +360,7 @@ protected:
 	HFONT promptFont = NULL;
 	bool rejected = true;
 	bool isActive = true;
+	bool isCreated = false;
 	wstring textBuffer;
 
 	void onCreated() override;
@@ -397,6 +398,7 @@ public:
 	template <InputDialog_ValueTypes value_type>
 	std::optional<value_type> getInput(std::wstring prompt = L"", value_type default_value = value_type{}) {
 		// 设置UI元素显示提示和默认值
+		if (!isCreated) create();
 		if (!prompt.empty()) setPrompt(prompt);
 		setText(str(default_value));
 
