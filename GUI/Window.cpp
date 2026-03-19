@@ -487,7 +487,12 @@ LRESULT Window::WndProc(UINT msg, WPARAM wParam, LPARAM lParam) {
 			notifCode = hdr.code;
 		}
 		try {
-			Window* target = managed.at(targetWindow); // 不需要锁
+			Window* target = nullptr;
+			{
+			    lock_guard gg(managed_lock);
+			    target = managed.at(targetWindow);
+			}
+			// FIXME: 这里可能target被销毁，如果target在这里被销毁，下一行代码会崩溃
 			return target->dispatchMessageToWindowAndGetResult(msg_t(notifCode + WINDOW_NOTIFICATION_CODES), (UINT)msg, lParam, true);
 		}
 		catch (std::out_of_range&) {

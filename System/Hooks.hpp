@@ -10,6 +10,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #endif
 
 #include "./def.hpp"
+#include <memory>
 
 
 namespace w32oop::exceptions {
@@ -29,29 +30,57 @@ namespace w32oop::def {
 
 
 namespace w32oop::system {
+	namespace detail {
+		struct VirtualFreeDeleter {
+			void operator()(void* p) const noexcept { VirtualFree(p, 0, MEM_RELEASE); }
+		};
+	}
+	
 	class Hook : public w32HookObject {
-	protected:
-		w32HookHandle hHook;
-		HOOKPROC ptrCallback;
-		
 	public:
 		Hook() {
-			ptrCallback = create_proc(cb, (long long)(void*)this);
+			void* memory = create_proc(cb, reinterpret_cast<long long>(this));
+			callbackMemory.reset(memory);
+			ptrCallback = reinterpret_cast<HOOKPROC>(memory);
 		}
-		virtual ~Hook() {
-			VirtualFree(ptrCallback, 0, MEM_RELEASE);
+		
+		virtual ~Hook() = default;
+
+		Hook(const Hook&) = delete;
+		Hook& operator=(const Hook&) = delete;
+		
+		Hook(Hook&& other) noexcept
+			: callbackMemory(std::move(other.callbackMemory))
+			, hHook(std::move(other.hHook))
+			, ptrCallback(other.ptrCallback)
+		{
+			other.ptrCallback = nullptr;
+		}
+		
+		Hook& operator=(Hook&& other) noexcept {
+			if (this != &other) {
+				callbackMemory = std::move(other.callbackMemory);
+				hHook = std::move(other.hHook);
+				ptrCallback = other.ptrCallback;
+				other.ptrCallback = nullptr;
+			}
+			return *this;
 		}
 
 		virtual void set(int idHook, DWORD dwThreadId, HINSTANCE hMod = NULL) final;
 		virtual void unset() final;
 
 	protected:
+		std::unique_ptr<void, detail::VirtualFreeDeleter> callbackMemory;
+		w32HookHandle hHook;
+		HOOKPROC ptrCallback;
+		
+	protected:
 		using MyHookProc = LRESULT(__stdcall*)(int code, WPARAM wParam, LPARAM lParam, long long userdata);
 		static LRESULT CALLBACK cb(int nCode, WPARAM wParam, LPARAM lParam, long long userdata);
-		static HOOKPROC create_proc(MyHookProc pfn, long long userdata);
+		static void* create_proc(MyHookProc pfn, long long userdata);
 
 	protected:
 		virtual LRESULT callback(int nCode, WPARAM wParam, LPARAM lParam) = 0;
 	};
 }
-
