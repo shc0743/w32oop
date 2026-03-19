@@ -11,7 +11,7 @@ LRESULT w32oop::system::Hook::cb(int nCode, WPARAM wParam, LPARAM lParam, long l
 	return target->callback(nCode, wParam, lParam);
 }
 
-HOOKPROC w32oop::system::Hook::create_proc(MyHookProc pfn, long long userdata) {
+void* w32oop::system::Hook::create_proc(MyHookProc pfn, long long userdata) {
 	void* memory = VirtualAlloc(NULL, 4096, MEM_COMMIT, PAGE_READWRITE); // 4096是最小的了
 	if (!memory) throw std::bad_alloc();
 	const auto fail = [&](const char* reason) {
@@ -72,7 +72,7 @@ HOOKPROC w32oop::system::Hook::create_proc(MyHookProc pfn, long long userdata) {
 	if (!VirtualProtect(memory, sizeof(payload), PAGE_EXECUTE_READ, &old_page_protection)) // 防止写入
 		fail("Failed to change memory protection");
 
-	return reinterpret_cast<HOOKPROC>(memory);
+	return memory;
 }
 
 void w32oop::system::Hook::set(int idHook, DWORD dwThreadId, HINSTANCE hMod) {
