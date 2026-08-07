@@ -144,7 +144,7 @@ HttpResponse w32oop::network::fetch(HttpRequest request) {
 	constexpr size_t readBufferSize = 1048576; // 1MiB
 	auto readBuffer = std::make_unique<char[]>(readBufferSize);
 	vector<uint8_t> memoryBuffer;
-	memoryBuffer.reserve(maxRead);
+	memoryBuffer.reserve((size_t)maxRead);
 	while (
 		WinHttpReadData(hRequest, readBuffer.get(), static_cast<DWORD>(readBufferSize), &readBytes)
 		&& readBytes > 0

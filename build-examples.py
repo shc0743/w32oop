@@ -188,7 +188,7 @@ def build_examples(examples_dir, obj_dir, link_exe='link.exe'):
                 '/nologo',
                 '/INCREMENTAL:NO',
                 '/MANIFESTUAC:level="asInvoker" uiAccess="false"',
-                '/OPT:REF'
+                '/OPT:REF',
             ] + all_obj_files + sys_lib
 
             # 执行链接

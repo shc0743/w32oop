@@ -17,8 +17,13 @@ namespace w32oop::exceptions {
 }
 
 
+namespace w32oop::system {
+	BOOL WINAPI MyUnhookWindowsHookEx(HHOOK hhk);
+}
+
+
 namespace w32oop::def {
-	using w32HookHandle = w32BaseHandle<HHOOK, false, UnhookWindowsHookEx, exceptions::invalid_hook_handle_exception>;
+	using w32HookHandle = w32BaseHandle<HHOOK, false, w32oop::system::MyUnhookWindowsHookEx, exceptions::invalid_hook_handle_exception>;
 	
 	class w32HookObject : public w32SystemObject {
 	public:
