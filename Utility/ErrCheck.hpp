@@ -42,6 +42,10 @@ namespace w32oop::util {
 			if (!FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER |
 				FORMAT_MESSAGE_IGNORE_INSERTS |
 				FORMAT_MESSAGE_FROM_SYSTEM, NULL,
+				code, 0, (PWSTR)&LocalAddress, 0, NULL) &&
+				!FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+				FORMAT_MESSAGE_IGNORE_INSERTS |
+				FORMAT_MESSAGE_FROM_HMODULE, GetModuleHandleW(L"ntdll.dll"), // allow querying NTSTATUS
 				code, 0, (PWSTR)&LocalAddress, 0, NULL)
 			) {
 				SetLastError(code);
