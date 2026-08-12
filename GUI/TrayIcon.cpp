@@ -1,5 +1,37 @@
 ﻿#include "./TrayIcon.hpp"
 
+UINT w32oop::ui::TrayIcon::WM_TaskbarCreated;
+
+w32oop::ui::TrayIcon::TrayIcon() {
+	if (!WM_TaskbarCreated) {
+		WM_TaskbarCreated = RegisterWindowMessage(TEXT("TaskbarCreated"));
+	}
+
+	memset(&nid, 0, sizeof(nid));
+
+	win.create(); // 创建虚拟窗口
+
+	nid.cbSize = sizeof(nid);
+	nid.hWnd = win.hwnd; // 关联到虚拟窗口
+	nid.uID = 1; // 默认ID
+	nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+	nid.uCallbackMessage = WM_USER + 1; // 自定义消息
+	nid.uVersion = NOTIFYICON_VERSION_4;
+
+	add(); // 添加托盘图标
+
+	win.addEventListener(WM_TaskbarCreated, [this](EventData& ev) {
+		_update();
+	});
+	addEventListener(nid.uCallbackMessage, [this](EventData& ev) {
+		this->handle_event(ev); // 处理托盘图标事件
+	});
+}
+
+w32oop::ui::TrayIcon::~TrayIcon() {
+	remove(); // 删除托盘图标
+}
+
 void w32oop::ui::TrayIcon::handle_event(EventData& ev) {
 	if (ev.message == nid.uCallbackMessage) {
 		// 处理托盘图标的点击事件

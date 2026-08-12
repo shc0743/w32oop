@@ -17,6 +17,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 namespace w32oop::ui {
 	class TrayIcon : public w32TrayIconObject {
 	protected:
+		static UINT WM_TaskbarCreated;
 		NOTIFYICONDATAW nid;
 		
 		class VirtualWindow : public Window {
@@ -31,34 +32,28 @@ namespace w32oop::ui {
 		};
 		VirtualWindow win;
 
+		bool _added = false;
+		void _update() {
+			if (_added) {
+				Shell_NotifyIcon(NIM_ADD, &nid); // 添加托盘图标
+			}
+			else {
+				Shell_NotifyIcon(NIM_DELETE, &nid); // 删除托盘图标
+			}
+		}
+
 	public:
-		TrayIcon() {
-			memset(&nid, 0, sizeof(nid));
-
-			win.create(); // 创建虚拟窗口
-
-			nid.cbSize = sizeof(nid);
-			nid.hWnd = win.hwnd; // 关联到虚拟窗口
-			nid.uID = 1; // 默认ID
-			nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
-			nid.uCallbackMessage = WM_USER + 1; // 自定义消息
-			nid.uVersion = NOTIFYICON_VERSION_4;
-
-			add(); // 添加托盘图标
-
-			addEventListener(nid.uCallbackMessage, [this](EventData& ev) {
-				this->handle_event(ev); // 处理托盘图标事件
-			});
-		}
-		virtual ~TrayIcon() {
-			remove(); // 删除托盘图标
-		}
+		TrayIcon();
+		virtual ~TrayIcon();
 
 		void add() {
-			Shell_NotifyIcon(NIM_ADD, &nid); // 添加托盘图标
+			_added = true; _update();
 		}
 		void remove() {
-			Shell_NotifyIcon(NIM_DELETE, &nid); // 删除托盘图标
+			_added = false; _update();
+		}
+		const bool& added() const {
+			return _added;
 		}
 
 		void addEventListener(UINT message, function<void(EventData&)> handler) {
