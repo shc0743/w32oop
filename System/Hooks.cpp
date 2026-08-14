@@ -11,7 +11,7 @@ LRESULT w32oop::system::Hook::cb(int nCode, WPARAM wParam, LPARAM lParam, long l
 	return target->callback(nCode, wParam, lParam);
 }
 
-BOOL __stdcall w32oop::system::MyUnhookWindowsHookEx(HHOOK hhk) {
+BOOL WINAPI w32oop::system::MyUnhookWindowsHookEx(HHOOK hhk) {
 	static HMODULE k32 = GetModuleHandleW(L"kernel32.dll");
 	if (!k32) __fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE);
 	static HMODULE u32 = GetModuleHandleW(L"user32.dll");
@@ -21,6 +21,18 @@ BOOL __stdcall w32oop::system::MyUnhookWindowsHookEx(HHOOK hhk) {
 	static auto UnhookWindowsHookEx = reinterpret_cast<decltype(&::UnhookWindowsHookEx)>(GetProcAddress(u32, "UnhookWindowsHookEx"));
 	if (!UnhookWindowsHookEx) __fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE);
 	return UnhookWindowsHookEx(hhk);
+}
+
+LRESULT WINAPI w32oop::system::MyCallNextHookEx(_In_opt_ HHOOK hhk, _In_ int nCode, _In_ WPARAM wParam, _In_ LPARAM lParam) {
+	static HMODULE k32 = GetModuleHandleW(L"kernel32.dll");
+	if (!k32) __fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE);
+	static HMODULE u32 = GetModuleHandleW(L"user32.dll");
+	if (!u32) __fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE);
+	static auto GetProcAddress = reinterpret_cast<decltype(&::GetProcAddress)>(::GetProcAddress(k32, "GetProcAddress"));
+	if (!GetProcAddress) __fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE);
+	static auto CallNextHookEx = reinterpret_cast<decltype(&::CallNextHookEx)>(GetProcAddress(u32, "CallNextHookEx"));
+	if (!CallNextHookEx) __fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE);
+	return CallNextHookEx(hhk, nCode, wParam, lParam);
 }
 
 HOOKPROC w32oop::system::Hook::create_proc(MyHookProc pfn, long long userdata) {

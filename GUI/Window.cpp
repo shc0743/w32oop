@@ -67,7 +67,7 @@ namespace w32oop::ui::internal {
 		}
 		MyHookProc proc = 0;
 		virtual LRESULT callback(int nCode, WPARAM wParam, LPARAM lParam) {
-			if (!proc) return CallNextHookEx(hHook, nCode, wParam, lParam);
+			if (!proc) return w32oop::system::MyCallNextHookEx(hHook, nCode, wParam, lParam);
 			return proc(nCode, wParam, lParam, user);
 		}
 	};
@@ -694,10 +694,10 @@ LRESULT __stdcall Window::handlekb(
 			data.source = pair.first.source;
 			pair.second(data);
 			if (prevented) return 1;
-			return CallNextHookEx(user->hHook, code, wParam, lParam);
+			return w32oop::system::MyCallNextHookEx(user->hHook, code, wParam, lParam);
 		}
 	}
-	return CallNextHookEx(user->hHook, code, wParam, lParam);
+	return w32oop::system::MyCallNextHookEx(user->hHook, code, wParam, lParam);
 }
 
 LRESULT Window::keyboard_proc(
@@ -708,10 +708,10 @@ LRESULT Window::keyboard_proc(
 ) {
 	HotKeyProcInternal* user = reinterpret_cast<HotKeyProcInternal*>(userdata);
 	lock_guard lock(hotkey_handlers_mutex);
-	// 如果 代码 小于零，挂钩过程必须将消息传递给 CallNextHookEx 函数，而无需进一步处理，并且应返回 CallNextHookEx 返回的值。
+	// 如果 代码 小于零，挂钩过程必须将消息传递给 w32oop::system::MyCallNextHookEx 函数，而无需进一步处理，并且应返回 w32oop::system::MyCallNextHookEx 返回的值。
 	// https://learn.microsoft.com/zh-cn/windows/win32/winmsg/keyboardproc
 	if (code < 0 || ((lParam >> 31) & 1)) {
-		return CallNextHookEx(user->hHook, code, wParam, lParam);
+		return w32oop::system::MyCallNextHookEx(user->hHook, code, wParam, lParam);
 	}
 	int key = (int)wParam;
 	bool
@@ -729,11 +729,11 @@ LRESULT Window::keyboard_proc_LL(
 ) {
 	HotKeyProcInternal* user = reinterpret_cast<HotKeyProcInternal*>(userdata);
 	lock_guard lock(hotkey_handlers_mutex);
-	// 如果 代码 小于零，挂钩过程必须将消息传递给 CallNextHookEx 函数，而无需进一步处理，并且应返回 CallNextHookEx 返回的值。
+	// 如果 代码 小于零，挂钩过程必须将消息传递给 w32oop::system::MyCallNextHookEx 函数，而无需进一步处理，并且应返回 w32oop::system::MyCallNextHookEx 返回的值。
 	// https://learn.microsoft.com/zh-cn/windows/win32/winmsg/keyboardproc
 	PKBDLLHOOKSTRUCT p = reinterpret_cast<PKBDLLHOOKSTRUCT>(lParam);
 	if ((code < 0) || (wParam != WM_KEYDOWN && wParam != WM_SYSKEYDOWN) || (!p)) {
-		return CallNextHookEx(user->hHook, code, wParam, lParam);
+		return w32oop::system::MyCallNextHookEx(user->hHook, code, wParam, lParam);
 	}
 	int vk = p->vkCode;
 	bool 

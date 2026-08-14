@@ -19,6 +19,7 @@ namespace w32oop::exceptions {
 
 namespace w32oop::system {
 	BOOL WINAPI MyUnhookWindowsHookEx(HHOOK hhk);
+	LRESULT WINAPI MyCallNextHookEx(_In_opt_ HHOOK hhk, _In_ int nCode, _In_ WPARAM wParam, _In_ LPARAM lParam);
 }
 
 
