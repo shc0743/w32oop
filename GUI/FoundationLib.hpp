@@ -396,11 +396,11 @@ protected:
 	}
 public:
 	template <InputDialog_ValueTypes value_type>
-	std::optional<value_type> getInput(std::wstring prompt = L"", value_type default_value = value_type{}) {
+	std::optional<value_type> getInput(std::wstring prompt = L"", std::optional<value_type> default_value = std::nullopt) {
 		// 设置UI元素显示提示和默认值
 		if (!isCreated) create();
 		if (!prompt.empty()) setPrompt(prompt);
-		setText(str(default_value));
+		if (default_value.has_value()) setText(str(default_value.value()));
 
 		show();
 		editBox.focus();
