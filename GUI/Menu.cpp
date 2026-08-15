@@ -26,10 +26,15 @@ void w32oop::ui::Menu::_build_itermenu(HMENU hMenu, const MenuItem& item, w32Men
 		mii.fMask = MIIM_BITMAP | MIIM_STRING | MIIM_ID;
 		mii.dwTypeData = const_cast<PWSTR>(item.text().c_str());
 		mii.wID = item.id();
-		ICONINFO iconInfo;
-		GetIconInfo(item.icon(), &iconInfo);
+		ICONINFO iconInfo{};
+		if (!GetIconInfo(item.icon(), &iconInfo)) {
+			// GetIconInfo 失败时退化为纯文本菜单项
+			AppendMenuW(hMenu, item.type(), item.id(), item.text().c_str());
+			return;
+		}
 		mii.hbmpItem = iconInfo.hbmColor;
 		owner.bmps.insert(mii.hbmpItem); // 将位图句柄存储到菜单句柄中，以便 RAII 自动释放
+		owner.bmps.insert(iconInfo.hbmMask); // hbmMask 同样由 GetIconInfo 新建，也需要释放
 		InsertMenuItemW(hMenu, item.id(), FALSE, &mii);
 		return;
 	}

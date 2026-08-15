@@ -56,6 +56,10 @@ namespace MyDemo {
             : Window(title, width, height, 0, 0, WS_OVERLAPPEDWINDOW) {}
 
     protected:
+        void onDestroy() override {
+            if (editorFont) DeleteObject(editorFont);
+        }
+
         void onCreated() override {
             // 创建 [打开文件] 按钮
             btnOpen.set_parent(*this);
