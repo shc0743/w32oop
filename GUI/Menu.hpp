@@ -54,6 +54,7 @@ namespace w32oop::def {
 
 
 namespace w32oop::ui {
+	class Window;
 	class MenuItem : public w32MenuObject {
 	protected:
 		UINT m_type;
@@ -191,16 +192,16 @@ namespace w32oop::ui {
 		// 核心实现，动态构造菜单
 		w32MenuHandleEx build(HMENU(WINAPI* builder)(VOID) = CreatePopupMenu) const;
 		// 弹出菜单（显示菜单）。
-		int pop(long x, long y, bool run_handler = true);
+		int pop(long x, long y, bool run_handler = true, Window* owner = nullptr);
 		// 在鼠标所在位置弹出菜单（显示菜单）。
-		inline int pop() {
+		inline int pop(Window* owner = nullptr) {
 			POINT pt{};
 			GetCursorPos(&pt); // 获取鼠标位置
-			return pop(pt); // 弹出菜单
+			return pop(pt, owner); // 弹出菜单
 		}
 		// 在指定位置弹出菜单（显示菜单）。
-		inline int pop(const POINT& pt) {
-			return pop(pt.x, pt.y); // 弹出菜单
+		inline int pop(const POINT& pt, Window* owner = nullptr) {
+			return pop(pt.x, pt.y, owner); // 弹出菜单
 		}
 		// 运行对应的处理程序
 		bool run(int nId);

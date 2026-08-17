@@ -19,7 +19,7 @@ std::vector<HWND> w32oop::ui::GetAllChildWindows(HWND hParent) {
 
 unordered_map<HWND, Window*> Window::managed;
 std::recursive_mutex Window::managed_lock;
-map<Window::GlobalOptions, long long> Window::global_options;
+std::array<long long, Window::Option_Count> Window::global_options{};
 HFONT Window::default_font;
 std::recursive_mutex Window::default_font_mutex;
 map<Window::HotKeyOptions, function<void(Window::HotKeyProcData&)>> Window::hotkey_handlers;
@@ -71,6 +71,20 @@ namespace w32oop::ui::internal {
 			return proc(nCode, wParam, lParam, user);
 		}
 	};
+	UINT get_system_dpi() {
+		HMODULE user32 = GetModuleHandleW(L"user32.dll");
+		if (user32) {
+			auto pGetDpiForSystem = (UINT(WINAPI*)())GetProcAddress(user32, "GetDpiForSystem");
+			if (pGetDpiForSystem) return pGetDpiForSystem();
+		}
+		HDC screen = GetDC(NULL);
+		UINT dpi = (UINT)GetDeviceCaps(screen, LOGPIXELSX);
+		ReleaseDC(NULL, screen);
+		return dpi ? dpi : 96;
+	}
+	float system_dpi_scale_factor() {
+		return (float)get_system_dpi() / 96.0f;
+	}
 }
 
 
@@ -108,8 +122,19 @@ void Window::set_default_font(HFONT font) {
 void Window::set_default_font(wstring font_name) {
 	default_font_mutex.lock();
 	if (default_font) DeleteObject(default_font);
-	default_font = CreateFontW(-14, -7, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET,
-		OUT_CHARACTER_PRECIS, CLIP_CHARACTER_PRECIS, DEFAULT_QUALITY, FF_DONTCARE,
+	// GDI的负高度字体不会按DC的DPI自动缩放（-14 在任何DPI下都是14px），
+	// 必须手动按缩放系数换算：96 DPI 下 -14 → 14px，200% 下 -28 → 28px。
+	// 注：GDI 在非96整数倍的DPI（如120/144）下会被系统强制禁用ClearType，
+	// 文本退化为灰度抗锯齿（看起来发虚/颗粒），这是GDI的固有限制；
+	// 用 CLEARTYPE_QUALITY 以在支持时（96/192/288 DPI）获得ClearType渲染。
+	float factor = 1.0f;
+	if (!get_global_option(GlobalOptions::Option_DisableFrameworkDpiVirtualization)) {
+		factor = w32oop::ui::internal::system_dpi_scale_factor();
+	}
+	default_font = CreateFontW(
+		(int)(-14.0f * factor - 0.5f), (int)(-7.0f * factor - 0.5f),
+		0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET,
+		OUT_CHARACTER_PRECIS, CLIP_CHARACTER_PRECIS, CLEARTYPE_QUALITY, FF_DONTCARE,
 		font_name.c_str());
 	default_font_mutex.unlock();
 }
@@ -142,15 +167,36 @@ void Window::register_class_if_needed() {
 }
 
 HWND Window::new_window() {
+	// 构造器/调用方传入的是逻辑尺寸与坐标，创建时按DPI缩放系数换算为物理像素。
 	return CreateWindowExW(
 		setup_info->styleEx,
 		class_name.c_str(),
 		setup_info->title.c_str(),
 		setup_info->style,
-		setup_info->x, setup_info->y,
-		setup_info->width, setup_info->height,
+		scaled(setup_info->x), scaled(setup_info->y),
+		scaled(setup_info->width), scaled(setup_info->height),
 		NULL, setup_info->hMenu, GetModuleHandleW(NULL), this
 	);
+}
+
+void Window::update_dpi_scale_factor(float new_factor) {
+	_dpi_scale_factor = new_factor;
+
+	auto controls = GetAllChildWindows(hwnd);
+	for (auto hwnd : controls) try {
+		lock_guard gg(managed_lock);
+		if (!managed.contains(hwnd)) continue;
+		managed.at(hwnd)->update_dpi_scale_factor(new_factor);
+	}
+	catch (...) {}
+}
+
+bool Window::is_framework_dpi_virtualization_allowed() const {
+	if (!((!get_global_option(Option_DisableFrameworkDpiVirtualization)) &&
+		(!_disable_framework_dpi_virtualization_for_this_window))) return false;
+	if (!has_managed_parent()) return true;
+	const Window& p = parent();
+	return p.is_framework_dpi_virtualization_allowed();
 }
 
 Window::Window(const std::wstring& title, int width, int height, int x, int y, LONG style, LONG styleEx, HMENU hMenu) {
@@ -181,6 +227,8 @@ DECLSPEC_NOINLINE Window& Window::operator=(Window&& other) noexcept {
 		hwnd = other.hwnd;
 		_created = other._created;
 		setup_info = other.setup_info;
+		_disable_framework_dpi_virtualization_for_this_window = other._disable_framework_dpi_virtualization_for_this_window;
+		_dpi_scale_factor = other._dpi_scale_factor;
 
 		// 重置源对象
 		other.hwnd = nullptr;
@@ -201,6 +249,7 @@ void Window::create() {
 	if (_created) throw window_already_initialized_exception();
 	if (!setup_info) throw window_illegal_state_exception();
 	transfer_ownership();
+	_dpi_scale_factor = (float)w32oop::ui::internal::system_dpi_scale_factor();
 	class_name = get_class_name();
 	register_class_if_needed();
 	if (get_global_option(Option_DebugMode)) {
@@ -298,12 +347,13 @@ void Window::center(HWND parent) {
 	center(hwnd, parent);
 }
 void Window::center(HWND hwnd, HWND parent) {
+	// center 是纯物理像素运算（窗口rect与屏幕尺寸都是物理值），显式调用全局API
 	RECT rcParent{};
-	if (parent) GetWindowRect(parent, &rcParent);
+	if (parent) ::GetWindowRect(parent, &rcParent);
 
 	// 取得窗口尺寸
 	RECT rect;
-	GetWindowRect(hwnd, &rect);
+	::GetWindowRect(hwnd, &rect);
 	// 获得窗口大小
 	auto w = rect.right - rect.left, h = rect.bottom - rect.top;
 	// 重新设置rect里的值
@@ -487,7 +537,11 @@ LRESULT Window::WndProc(UINT msg, WPARAM wParam, LPARAM lParam) {
 			notifCode = hdr.code;
 		}
 		try {
-			Window* target = managed.at(targetWindow); // 不需要锁
+			Window* target;
+			{
+				lock_guard gg(managed_lock);
+				target = managed.at(targetWindow);
+			}
 			return target->dispatchMessageToWindowAndGetResult(msg_t(notifCode + WINDOW_NOTIFICATION_CODES), (UINT)msg, lParam, true);
 		}
 		catch (std::out_of_range&) {
@@ -748,14 +802,32 @@ void Window::onDestroy() {}
 
 void Window::m_onCreated() {
 	SendMessageW(hwnd, WM_SETFONT, (WPARAM)get_font(), 0);
-	addEventListener(WM_SYSCOLORCHANGE, [this](const EventData& data) {
+	addEventListener(WM_SYSCOLORCHANGE, [this](EventData& ev) {
 		// 转发到控件。
 		// https://learn.microsoft.com/zh-cn/windows/win32/controls/control-messages
-		if (GetParent(hwnd)) return; // 防止无限转发
+		//if (GetParent(hwnd)) return; // 防止无限转发
 		auto controls = GetAllChildWindows(hwnd);
-		for (auto hwnd : controls) {
-			PostMessage(hwnd, WM_SYSCOLORCHANGE, data.wParam, data.lParam);
+		for (auto hwnd : controls) try {
+			Window* w;
+			lock_guard gg(managed_lock);
+			if (!managed.contains(hwnd)) continue;
+			w = managed.at(hwnd);
+			if (w) w->dispatchEvent(ev);
+		} catch (...) {}
+	});
+	addEventListener(WM_DPICHANGED, [this](EventData& ev) {
+		if (!is_framework_dpi_virtualization_allowed()) return;
+		update_dpi_scale_factor((float)HIWORD(ev.wParam) / 96.0f);
+		// 顶层窗口按系统建议的矩形调整物理尺寸，保持逻辑尺寸不变。
+		const RECT* suggested = reinterpret_cast<const RECT*>(ev.lParam);
+		if (suggested) {
+			SetWindowPos(hwnd, nullptr,
+				suggested->left, suggested->top,
+				suggested->right - suggested->left,
+				suggested->bottom - suggested->top,
+				SWP_NOZORDER | SWP_NOACTIVATE);
 		}
+		ev.returnValue(0);
 	});
 }
 
@@ -917,3 +989,27 @@ void Window::remove_all_hot_key_global() {
 	// 直接清空
 	hotkey_handlers.clear();
 }
+
+// DPI 相关的 stub
+
+BOOL Window::GetClientRect(HWND hWnd, LPRECT lpRect) const {
+	BOOL result = ::GetClientRect(hWnd, lpRect);
+	if (!managed.contains(hwnd)) return result;
+	lpRect->left = unscaled(lpRect->left);
+	lpRect->top = unscaled(lpRect->top);
+	lpRect->right = unscaled(lpRect->right);
+	lpRect->bottom = unscaled(lpRect->bottom);
+	return result;
+}
+
+BOOL Window::GetWindowRect(HWND hWnd, LPRECT lpRect) const {
+	BOOL result = ::GetWindowRect(hWnd, lpRect);
+	if (!managed.contains(hwnd)) return result;
+	lpRect->left = unscaled(lpRect->left);
+	lpRect->top = unscaled(lpRect->top);
+	lpRect->right = unscaled(lpRect->right);
+	lpRect->bottom = unscaled(lpRect->bottom);
+	return result;
+}
+
+

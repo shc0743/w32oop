@@ -7,6 +7,9 @@
 #include <algorithm>
 #include <random>
 #include <format>
+#include <vector>
+#include <thread>
+#include <shellapi.h>
 
 #pragma comment(linker,"\"/manifestdependency:type='win32' \
 name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
@@ -20,9 +23,178 @@ static int binary_search(const vector<int>& arr, int target);
 static void bubble_sort(vector<int>& arr);
 
 namespace MyDemo {
+	class EventBubbleDemoEx : public Window {
+	private:
+		static constexpr int PADDING = 10;
+		static constexpr int BUTTON_HEIGHT = 30;
+		static constexpr int BUTTON_SPACING = 5;
+
+		int scrollPos = 0;
+		int scrollMax = 0;
+		Button btnAddFile;                                    // The "Add File" button
+		std::vector<std::unique_ptr<Button>> fileButtons;    // Dynamic file buttons
+
+		// Update positions of all buttons and adjust scroll range.
+		void updateLayout(int clientWidth, int clientHeight) {
+			int totalButtons = 1 + (int)fileButtons.size();  // Add File + each file
+			int totalHeight = totalButtons * (BUTTON_HEIGHT + BUTTON_SPACING) - BUTTON_SPACING + 2 * PADDING;
+			scrollMax = (std::max)(0, totalHeight - clientHeight);
+			scrollPos = std::clamp(scrollPos, 0, scrollMax);
+
+			::SetScrollRange(hwnd, SB_VERT, 0, scrollMax, TRUE);
+			::SetScrollPos(hwnd, SB_VERT, scrollPos, TRUE);
+
+			// Place "Add File" at top
+			btnAddFile.move_to(PADDING, PADDING - scrollPos);
+			btnAddFile.resize(clientWidth - 2 * PADDING, BUTTON_HEIGHT);
+
+			// Place each file button below
+			for (size_t i = 0; i < fileButtons.size(); ++i) {
+				int y = PADDING + (int)(i + 1) * (BUTTON_HEIGHT + BUTTON_SPACING) - scrollPos;
+				fileButtons[i]->move_to(PADDING, y);
+				fileButtons[i]->resize(clientWidth - 2 * PADDING, BUTTON_HEIGHT);
+			}
+			InvalidateRect(hwnd, nullptr, TRUE);
+		}
+
+		// Show Open File dialog and return selected path (empty if cancelled).
+		std::wstring openFileDialog() {
+			OPENFILENAMEW ofn{};       // common dialog box structure
+			wchar_t szFile[260]{};       // buffer for file name
+
+			ofn.lStructSize = sizeof(ofn);
+			ofn.hwndOwner = hwnd;
+			ofn.lpstrFile = szFile;
+			ofn.lpstrFile[0] = '\0';
+			ofn.nMaxFile = sizeof(szFile);
+			ofn.lpstrFilter = L"All Files\0*.*\0";
+			ofn.nFilterIndex = 1;
+			ofn.lpstrFileTitle = NULL;
+			ofn.nMaxFileTitle = 0;
+			ofn.lpstrInitialDir = NULL;
+			ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_EXPLORER;
+
+			if (GetOpenFileNameW(&ofn))
+				return std::wstring(szFile);
+			return L"";
+		}
+
+	public:
+		EventBubbleDemoEx(const wstring& title, int width, int height, int x = 0, int y = 0)
+			: Window(title, width, height, x, y, WS_OVERLAPPEDWINDOW | WS_VSCROLL) {
+		}
+
+	protected:
+		void onCreated() override {
+			DragAcceptFiles(hwnd, TRUE);
+
+			btnAddFile.set_parent(this);
+			btnAddFile.create(L"Add or Drag File", 100, BUTTON_HEIGHT, PADDING, PADDING);
+
+			RECT rc;
+			GetClientRect(hwnd, &rc);
+			updateLayout(rc.right - rc.left, rc.bottom - rc.top);
+		}
+
+		virtual void setup_event_handlers() override {
+			WINDOW_add_handler(WM_SIZING, doLayout);
+			WINDOW_add_handler(WM_SIZE, doLayout);
+			WINDOW_add_handler(WM_VSCROLL, doLayout);
+			WINDOW_add_handler(WM_DROPFILES, onDropFiles);
+			WINDOW_add_handler(WM_MOUSEWHEEL, onMouseWheel);
+			addEventListener(WINDOW_NOTIFICATION_CODES + BN_CLICKED, [this](EventData& ev) { handleBubbledClick(ev); });
+		}
+
+		void doLayout(EventData& ev) {
+			if (ev.message == WM_VSCROLL) {
+				int newPos = scrollPos;
+				int delta = 0;
+				switch (LOWORD(ev.wParam)) {
+				case SB_LINEUP:      delta = -1; break;
+				case SB_LINEDOWN:    delta = 1;  break;
+				case SB_PAGEUP:      delta = -10; break;
+				case SB_PAGEDOWN:    delta = 10;  break;
+				case SB_THUMBTRACK:  newPos = HIWORD(ev.wParam); break;
+				case SB_TOP:         newPos = 0; break;
+				case SB_BOTTOM:      newPos = scrollMax; break;
+				default:             return;
+				}
+				if (LOWORD(ev.wParam) != SB_THUMBTRACK)
+					newPos = scrollPos + delta;
+				newPos = std::clamp(newPos, 0, scrollMax);
+				if (newPos != scrollPos) {
+					scrollPos = newPos;
+					::SetScrollPos(hwnd, SB_VERT, scrollPos, TRUE);
+					RECT rc;
+					GetClientRect(hwnd, &rc);
+					updateLayout(rc.right - rc.left, rc.bottom - rc.top);
+				}
+			}
+			else { // WM_SIZE or WM_SIZING
+				RECT rc;
+				GetClientRect(hwnd, &rc);
+				updateLayout(rc.right - rc.left, rc.bottom - rc.top);
+			}
+		}
+
+		void onDropFiles(EventData& ev) {
+			HDROP hDrop = (HDROP)ev.wParam;
+			UINT fileCount = DragQueryFile(hDrop, 0xFFFFFFFF, NULL, 0);
+			for (UINT i = 0; i < fileCount; ++i) {
+				wchar_t szPath[MAX_PATH];
+				DragQueryFile(hDrop, i, szPath, MAX_PATH);
+				auto newBtn = std::make_unique<Button>();
+				newBtn->set_parent(this);
+				newBtn->create(szPath, 100, BUTTON_HEIGHT, PADDING, PADDING);
+				fileButtons.push_back(std::move(newBtn));
+			}
+			DragFinish(hDrop);
+			RECT rc{};
+			GetClientRect(hwnd, &rc);
+			updateLayout(rc.right - rc.left, rc.bottom - rc.top);
+		}
+
+		void onMouseWheel(EventData& ev) {
+			int zDelta = GET_WHEEL_DELTA_WPARAM(ev.wParam);
+			int delta = -zDelta / WHEEL_DELTA * 30;
+			int newPos = scrollPos + delta;
+			newPos = std::clamp(newPos, 0, scrollMax);
+			if (newPos != scrollPos) {
+				scrollPos = newPos;
+				::SetScrollPos(hwnd, SB_VERT, scrollPos, TRUE);
+				RECT rc;
+				GetClientRect(hwnd, &rc);
+				updateLayout(rc.right - rc.left, rc.bottom - rc.top);
+			}
+		}
+
+		void handleBubbledClick(EventData& ev) {
+			Button* pBtn = dynamic_cast<Button*>(ev.source());
+			if (!pBtn) return;
+
+			// "Add File" button: open dialog and create new file button.
+			if (pBtn == &btnAddFile) {
+				wstring path = openFileDialog();
+				if (!path.empty()) {
+					auto newBtn = std::make_unique<Button>();
+					newBtn->set_parent(this);
+					newBtn->create(path, 100, BUTTON_HEIGHT, PADDING, PADDING);
+					fileButtons.push_back(std::move(newBtn));
+
+					RECT rc;
+					GetClientRect(hwnd, &rc);
+					updateLayout(rc.right - rc.left, rc.bottom - rc.top);
+				}
+			}
+			else {
+				// File button clicked: show its name.
+				ShellExecuteW(hwnd, L"open", pBtn->text().c_str(), NULL, NULL, 1);
+			}
+		}
+	};
 	class EventBubbleDemo : public Window {
 	protected:
-		Button btn1, btn2, btn3, btn4;
+		Button btn1, btn2, btn3, btn4, btn5;
 
 	public:
 		EventBubbleDemo(const wstring& title, int width, int height, int x = 0, int y = 0)
@@ -38,6 +210,8 @@ namespace MyDemo {
 			btn3.create(L"Button3", 60, 30, 10, 90);
 			btn4.set_parent(this);
 			btn4.create(L"Button4", 60, 30, 10, 130);
+			btn5.set_parent(this);
+			btn5.create(L"Run Advanced Demo", 240, 30, 10, 170);
 
 			// Bubble:
 			addEventListener(WINDOW_NOTIFICATION_CODES + BN_CLICKED, [this](EventData& event) {
@@ -88,6 +262,21 @@ namespace MyDemo {
 					out = format(L"[4] Result: {}", arr[3]);
 				}
 				MessageBoxW(hwnd, out.c_str(), L"Result", MB_ICONINFORMATION);
+			});
+
+			// Button5: Open extended demo.
+			btn5.onClick([this](EventData& event) {
+				event.stopPropagation();
+				disable();
+				std::thread([this] {
+					MyDemo::EventBubbleDemoEx app(L"Event Bubble Demo Ex", 480, 320);
+					app.create();
+					app.set_main_window();
+					app.center();
+					app.show();
+					app.run();
+					this->enable();
+				}).detach();
 			});
 		}
 		void onClicked(EventData&) {

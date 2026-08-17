@@ -1,4 +1,5 @@
 ﻿#include "./Menu.hpp"
+#include "./Window.hpp"
 #include "../Utility/RAII.hpp"
 using namespace w32oop;
 using namespace w32oop::ui;
@@ -52,22 +53,27 @@ void w32oop::ui::Menu::_build_menutree(HMENU hMenu, const MenuItem& item, w32Men
 	}
 }
 
-int w32oop::ui::Menu::pop(long x, long y, bool run_handler) {
+int w32oop::ui::Menu::pop(long x, long y, bool run_handler, Window* owner) {
 	w32MenuHandleEx hMenu = build(); // 构建菜单句柄
-	HWND tempWindow = CreateWindowExW(WS_EX_TOOLWINDOW, L"Static", L"Popup Menu Window",
-		WS_POPUP, 0, 0, 1, 1, NULL, 0, NULL, NULL);
-	if (!tempWindow) {
+	if (owner && owner->is_framework_dpi_virtualization_allowed()) {
+		// 虚拟化坐标
+		x = owner->scaled(x);
+		y = owner->scaled(y);
+	}
+	HWND hostWindow = owner ? *owner : CreateWindowExW(WS_EX_TOOLWINDOW, L"Static", L"Popup Menu Window",
+		WS_POPUP, -8, -8, 1, 1, NULL, 0, NULL, NULL);
+	if (!hostWindow) {
 		throw exceptions::window_creation_failure_exception("Failed to create temporary window for menu popup.");
 	}
-	w32oop::util::RAIIHelper _([tempWindow] { DestroyWindow(tempWindow); }); // 销毁临时窗口
-	ShowWindow(tempWindow, SW_NORMAL);
-	SetForegroundWindow(tempWindow);
+	ShowWindow(hostWindow, SW_NORMAL);
+	SetForegroundWindow(hostWindow);
 	int result = TrackPopupMenu(
 		hMenu, // 菜单句柄
 		TPM_RETURNCMD | TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RIGHTBUTTON,
 		x, y, 0,
-		tempWindow, NULL
+		hostWindow, NULL
 	);
+	if (!owner) DestroyWindow(hostWindow);
 	// 处理用户选择
 	if (run_handler) {
 		if (result != 0) run(result);

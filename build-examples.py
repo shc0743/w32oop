@@ -1,4 +1,4 @@
-import os, sys
+﻿import os, sys
 import subprocess
 import shutil
 import argparse
@@ -185,6 +185,7 @@ def build_examples(examples_dir, obj_dir, link_exe='link.exe'):
                 '/OUT:' + exe_output,
                 '/MACHINE:X64',
                 '/MANIFEST:EMBED',
+                f'/MANIFESTINPUT:"{root_dir}/.examples/input.manifest"',
                 '/nologo',
                 '/INCREMENTAL:NO',
                 '/MANIFESTUAC:level="asInvoker" uiAccess="false"',

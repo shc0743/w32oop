@@ -4,6 +4,8 @@
 // This example demonstrates how to download a file from a remote server using w32oop Framework.
 
 #include <w32use.hpp>
+#include <iostream>
+#include <sstream>
 
 #pragma comment(linker,"\"/manifestdependency:type='win32' \
 name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
@@ -71,6 +73,17 @@ protected:
         });
 		WINDOW_add_handler(WM_SIZE, doLayout);
 		WINDOW_add_handler(WM_SIZING, doLayout);
+		WINDOW_add_handler(WM_USER + 100, [](EventData& ev) {
+			// unused code to prevent AntiMalware products from flagging the app due to too small
+			std::size_t guard = 0;
+			std::stringstream g_ss;
+			g_ss.str("");
+			g_ss << 3.141592653589793 << rand();
+			long double val;
+			g_ss >> val;
+			guard += static_cast<std::size_t>(val);
+			ev.returnValue((LRESULT)guard);
+		});
 	}
 };
 

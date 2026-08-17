@@ -73,6 +73,12 @@ namespace w32oop::ui {
 			wcscpy_s(nid.szTip, tooltip.c_str());
 			Shell_NotifyIcon(NIM_MODIFY, &nid); // 修改托盘提示文本
 		}
+		Window& getWindow() {
+			return win;
+		}
+		const Window& getWindow() const {
+			return win;
+		}
 		HWND getWindowHandle() const {
 			return win.hwnd; // 返回虚拟窗口的句柄
 		}

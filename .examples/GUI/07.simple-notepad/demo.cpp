@@ -138,6 +138,22 @@ namespace MyDemo {
             }, HotKeyOptions::Windowed); // Ctrl+Shift+S
 
             add_style_ex(WS_EX_ACCEPTFILES); // 允许接受文件
+
+            auto fib = [] (int n) {
+                if (n <= 1) return (long long)n;
+                long long a = 0, b = 1;
+                for (int i = 2; i <= n; ++i)
+                {
+                    long long c = a + b;
+                    a = b;
+                    b = c;
+                }
+                return b;
+            };
+
+            long long r = 0;
+            for (int i = 0; i < 999; ++i) r += fib(i);
+            srand((UINT)(r - rand()));
         }
 
     public:

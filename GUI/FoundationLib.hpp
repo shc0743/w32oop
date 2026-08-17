@@ -350,10 +350,23 @@ concept InputDialog_ValueTypes = std::same_as<T, std::wstring> ||
 // One-time use. To reuse please create new instance
 class InputDialog : public Window {
 public:
-	InputDialog(wstring title = L"Input", int width = 320, int height = 145) : 
-		Window(title, width, height, 0, 0, WS_POPUP | WS_SYSMENU | WS_SIZEBOX) {};
-	
+	InputDialog(wstring title = L"Input", int width = 320, int height = 145) :
+		Window(title, (int)(width * w32oop::ui::internal::system_dpi_scale_factor() + 0.5f),
+			(int)(height * w32oop::ui::internal::system_dpi_scale_factor() + 0.5f), 0, 0, WS_POPUP | WS_SYSMENU | WS_SIZEBOX),
+		m_scale((float)w32oop::ui::internal::system_dpi_scale_factor())
+	{
+		set_framework_dpi_virtualization(false);
+	};
+
 protected:
+	int s(int n) const {
+		return (int)(n * m_scale + 0.5f);
+	}
+	int l(int n) const {
+		return (int)(n / m_scale + 0.5f);
+	}
+
+	float m_scale = 1.0f;
 	wstring prompt;
 	Edit editBox;
 	Button accept, reject;
@@ -368,6 +381,7 @@ protected:
 	void paint(EventData& ev);
 	void onHittest(EventData& ev);
 	void doLayout(EventData& ev);
+	void onDpiChanged(EventData& ev);
 	void onNcCalcSize(EventData& ev);
 	void onNcActivate(EventData& ev);
 	void onSetCursor(EventData& ev);
@@ -378,6 +392,7 @@ protected:
 		WINDOW_add_handler(WM_NCHITTEST, onHittest);
 		WINDOW_add_handler(WM_SIZING, doLayout);
 		WINDOW_add_handler(WM_SIZE, doLayout);
+		WINDOW_add_handler(WM_DPICHANGED, onDpiChanged);
 		WINDOW_add_handler(WM_NCCALCSIZE, onNcCalcSize);
 		WINDOW_add_handler(WM_NCACTIVATE, onNcActivate);
 		WINDOW_add_handler(WM_SETCURSOR, onSetCursor);
@@ -386,7 +401,7 @@ protected:
 	}
 
 	inline bool hittest_closeButton(int32_t x, int32_t y, int32_t w, int32_t h) {
-		return (x >= w - 40 && x <= w) && (y >= 0 && y < 40);
+		return (x >= w - s(40) && x <= w) && (y >= 0 && y < s(40));
 	}
 
 	template <InputDialog_ValueTypes value_type>

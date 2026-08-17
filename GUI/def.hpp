@@ -45,6 +45,7 @@ namespace w32oop::exceptions {
     w32oop_declare_exception_class_from(window_creation_failure, window_exception);
     w32oop_declare_exception_class_from(window_destroy_failure, window_exception);
     w32oop_declare_exception_class_from(window_has_no_parent, window_exception);
+    w32oop_declare_exception_class_from(window_parent_not_managed, window_exception);
     w32oop_declare_exception_class_from(window_dangerous_thread_operation, window_exception);
     w32oop_declare_exception_class_from(window_hotkey_duplication, window_exception);
 }

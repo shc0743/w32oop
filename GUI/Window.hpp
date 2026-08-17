@@ -10,6 +10,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #endif
 #include "./def.hpp"
 #include "../Utility/RAII.hpp"
+#include <array>
 #pragma region internal macros
 #define package namespace
 #define declare {
@@ -104,6 +105,8 @@ public:
 		Option_EnableHotkey,
 		Option_EnableGlobalHotkey,
 		Option_QuitWhenWindowAllClosed,
+		Option_DisableFrameworkDpiVirtualization,
+		Option_Count,
 	};
 	using msg_t = ULONGLONG;
 protected:
@@ -145,22 +148,26 @@ private:
 	static std::recursive_mutex managed_lock;
 	static recursive_mutex default_font_mutex;
 	static HFONT default_font;
-	static map<GlobalOptions, long long> global_options;
+	static std::array<long long, Option_Count> global_options;
 	static map<HotKeyOptions, function<void(HotKeyProcData&)>> hotkey_handlers;
 	static std::recursive_mutex hotkey_handlers_mutex;
 
 protected:
 	HWND hwnd = nullptr; // 窗口句柄
-	
+
 public:
 	static inline void set_global_option(GlobalOptions option, long long value) {
+		if (option < 0 || option >= Option_Count) return;
 		global_options[option] = value;
 	}
 	static inline long long get_global_option(GlobalOptions option) {
-		if (global_options.contains(option)) {
-			return global_options[option];
-		}
-		return 0;
+		if (option < 0 || option >= Option_Count) return 0;
+		return global_options[option];
+	}
+	static inline bool is_framework_window(HWND hwnd) {
+		if (!IsWindow(hwnd)) return false;
+		std::lock_guard gg(managed_lock);
+		return managed.contains(hwnd);
 	}
 
 public:
@@ -220,6 +227,17 @@ protected:
 private:
 	bool _created = false;
 	bool is_main_window = false;
+	bool _disable_framework_dpi_virtualization_for_this_window = false;
+	float _dpi_scale_factor = 1.0f;
+
+protected:
+	inline void set_framework_dpi_virtualization(bool enable) {
+		_disable_framework_dpi_virtualization_for_this_window = !enable;
+	}
+	void update_dpi_scale_factor(float new_factor);
+public:
+	// 如果关闭当前窗口的框架虚拟化功能，那么所有子控件的虚拟化也将被一并关闭。
+	virtual bool is_framework_dpi_virtualization_allowed() const final;
 
 public:
 	Window(
@@ -239,7 +257,9 @@ public:
 	Window& operator=(const Window&) = delete;
 
 	Window(Window&& other) noexcept :
-		hwnd(other.hwnd), setup_info(other.setup_info)
+		hwnd(other.hwnd), setup_info(other.setup_info),
+		_disable_framework_dpi_virtualization_for_this_window(other._disable_framework_dpi_virtualization_for_this_window),
+		_dpi_scale_factor(other._dpi_scale_factor)
 	{
 		other.hwnd = nullptr;
 		other.setup_info = nullptr;
@@ -282,9 +302,12 @@ public:
 		SetParent(child.hwnd, hwnd);
 	}
 
-	virtual bool has_parent() final {
-		validate_hwnd();
+	virtual bool has_parent() const final {
 		return GetParent(hwnd);
+	}
+	virtual bool has_managed_parent() const final {
+		HWND p = GetParent(hwnd);
+		return p && is_framework_window(p);
 	}
 	virtual Window& parent() final {
 		validate_hwnd();
@@ -292,7 +315,15 @@ public:
 		if (!parent) throw window_has_no_parent_exception();
 		lock_guard gg(managed_lock);
 		if (managed.contains(parent)) return *(managed.at(parent));
-		throw window_has_no_parent_exception();
+		throw window_parent_not_managed_exception();
+	}
+	virtual const Window& parent() const final {
+		validate_hwnd();
+		HWND parent = GetParent(hwnd);
+		if (!parent) throw window_has_no_parent_exception();
+		lock_guard gg(managed_lock);
+		if (managed.contains(parent)) return *(managed.at(parent));
+		throw window_parent_not_managed_exception();
 	}
 
 	// 窗口操作方法
@@ -316,19 +347,33 @@ public:
 
 	virtual bool force_focus(DWORD timeout = 10000) final;
 
+	// 计算经框架DPI虚拟化后的数值（尺寸/坐标/字体大小等）。
+	// 当全局选项 Option_DisableFrameworkDpiVirtualization 或当前窗口
+	// 关闭了框架DPI虚拟化时，原样返回；否则返回 n × 当前DPI缩放系数。
+	inline int scaled(int n) const {
+		if (!is_framework_dpi_virtualization_allowed()) return n;
+		return static_cast<int>(n * _dpi_scale_factor + (n >= 0 ? 0.5f : -0.5f));
+	}
+	// scaled 的逆运算：物理坐标 → 逻辑坐标（除以DPI缩放系数）。
+	// 遮蔽的 GetClientRect/GetWindowRect 内部用它把物理像素换算回逻辑像素。
+	inline int unscaled(int n) const {
+		if (!is_framework_dpi_virtualization_allowed()) return n;
+		return static_cast<int>(n / _dpi_scale_factor + (n >= 0 ? 0.5f : -0.5f));
+	}
+
 	inline void move_to(int x, int y) {
 		validate_hwnd();
-		SetWindowPos(hwnd, nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+		SetWindowPos(hwnd, nullptr, scaled(x), scaled(y), 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 	}
 
 	inline void resize(int w, int h) {
 		validate_hwnd();
-		SetWindowPos(hwnd, nullptr, 0, 0, w, h, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+		SetWindowPos(hwnd, nullptr, 0, 0, scaled(w), scaled(h), SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 	}
 
 	inline void resize(int x, int y, int w, int h) {
 		validate_hwnd();
-		SetWindowPos(hwnd, nullptr, x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
+		SetWindowPos(hwnd, nullptr, scaled(x), scaled(y), scaled(w), scaled(h), SWP_NOZORDER | SWP_NOACTIVATE);
 	}
 
 	inline void resize(const RECT& rc) {
@@ -507,6 +552,12 @@ protected:
 	) final;
 	virtual void remove_all_hot_key_on_window() final;
 	virtual void remove_all_hot_key_global() final;
+
+public:
+	// shim
+	BOOL GetClientRect(HWND hWnd, LPRECT lpRect) const;
+	BOOL GetWindowRect(HWND hWnd, LPRECT lpRect) const;
+
 };
 
 #pragma region macros to simplify the event handling
@@ -525,6 +576,12 @@ protected:
 #define WINDOW_add_handler(msg,handler) addEventListener(msg, [this](EventData& data) { if (data.hwnd != this->hwnd) return;handler(data); });
 #define WINDOW_add_notification_handler(msg,handler) addEventListener((::w32oop::ui::WINDOW_NOTIFICATION_CODES) + (msg), [this](EventData& data) { if (data.hwnd != this->hwnd || (!data.is_notification())) return;handler(data); });
 #pragma endregion
+
+package internal declare;
+UINT get_system_dpi();
+float system_dpi_scale_factor();
+
+endpackage;
 
 
 endpackage;
