@@ -11,6 +11,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 #include "./def.hpp"
 #include <any>
+#include <optional>
 
 
 namespace w32oop::exceptions {
@@ -68,6 +69,39 @@ namespace w32oop::system {
 				throw exceptions::invalid_registry_handle_exception("Invalid type cast for registry value.");
 			}
 		}
+		inline const auto get_raw() const {
+			return m_value;
+		}
+		template<typename value_type>
+		value_type* get_if() noexcept {
+			return std::any_cast<value_type>(&m_value);
+		}
+		template<typename value_type>
+		const value_type* get_if() const noexcept {
+			return std::any_cast<value_type>(&m_value);
+		}
+		template<typename value_type>
+		value_type* get_if(ULONG type) noexcept {
+			if (m_type != type) return nullptr;
+			return std::any_cast<value_type>(&m_value);
+		}
+		template<typename value_type>
+		const value_type* get_if(ULONG type) const noexcept {
+			if (m_type != type) return nullptr;
+			return std::any_cast<value_type>(&m_value);
+		}
+		template<typename value_type>
+		value_type get_or(value_type fallback) const noexcept {
+			if (auto p = std::any_cast<value_type>(&m_value)) {
+				return *p;
+			}
+			return fallback;
+		}
+		template<typename value_type>
+		value_type get_or(value_type fallback, ULONG type) const noexcept {
+			if (m_type != type) return fallback;
+			return get_or(std::move(fallback));
+		}
 		inline ULONG type() const {
 			return m_type;
 		}
@@ -101,6 +135,9 @@ namespace w32oop::system {
 		}
 		~RegistryKey() {}
 
+		inline HKEY get_raw() { return hKey.get(); }
+		inline void validate() const { hKey.validate(); }
+
 	public:
 		// 创建子健
 		RegistryKey create(wstring subkeyName, REGSAM access = KEY_ALL_ACCESS, bool bFailIfExists = false);
@@ -112,6 +149,28 @@ namespace w32oop::system {
 		template<typename T>
 		T get_value(wstring valueName, bool bNoExpand = false) const {
 			return get(valueName, bNoExpand).get<T>();
+		}
+		// 直接获取特定键的值，valueName可以为空字符串，表示获取(默认)键的值
+		template<typename T>
+		std::optional<T> get_value_if(wstring valueName, bool bNoExpand = false) const {
+			RegistryValue value = get(valueName, bNoExpand);
+			if (auto p = value.get_if<T>()) {
+				return *p;
+			}
+			return std::nullopt;
+		}
+		// 直接获取特定键的值，valueName可以为空字符串，表示获取(默认)键的值
+		template<typename T>
+		T get_value_or(wstring valueName, T fallback, bool bNoExpand = false) const noexcept {
+			try {
+				RegistryValue value = get(valueName, bNoExpand);
+				if (auto p = value.get_if<T>()) {
+					return *p;
+				}
+			}
+			catch (...) {
+			}
+			return fallback;
 		}
 		// 设置特定键的值
 		void set(wstring valueName, const RegistryValue& value);
