@@ -204,21 +204,24 @@ void Window::_XxxInternalFixDpiForWindow() {
 	}
 }
 
-void Window::update_dpi_scale_factor(float new_factor) {
+void Window::update_dpi_scale_factor(float new_factor, bool _Indirect) {
 	_dpi_scale_factor = new_factor;
 
-	auto controls = GetAllChildWindows(hwnd);
-	for (auto hwnd : controls) try {
-		lock_guard gg(managed_lock);
-		if (!managed.contains(hwnd)) continue;
-		managed.at(hwnd)->update_dpi_scale_factor(new_factor);
+	if (!_Indirect) {
+		auto controls = GetAllChildWindows(hwnd);
+		for (auto hwnd : controls) try {
+			lock_guard gg(managed_lock);
+			if (!managed.contains(hwnd)) continue;
+			managed.at(hwnd)->update_dpi_scale_factor(new_factor, true);
+		}
+		catch (...) {}
 	}
-	catch (...) {}
 }
 
 bool Window::is_framework_dpi_virtualization_allowed() const {
 	if (!((!get_global_option(Option_DisableFrameworkDpiVirtualization)) &&
 		(!_disable_framework_dpi_virtualization_for_this_window))) return false;
+	// TODO: add caching to improve perf
 	if (!has_managed_parent()) return true;
 	const Window& p = parent();
 	return p.is_framework_dpi_virtualization_allowed();
@@ -843,7 +846,7 @@ void Window::m_onCreated() {
 	});
 	addEventListener(WM_DPICHANGED, [this](EventData& ev) {
 		if (!is_framework_dpi_virtualization_allowed()) return;
-		update_dpi_scale_factor((float)HIWORD(ev.wParam) / 96.0f);
+		update_dpi_scale_factor((float)HIWORD(ev.wParam) / 96.0f, false);
 		// 顶层窗口按系统建议的矩形调整物理尺寸，保持逻辑尺寸不变。
 		const RECT* suggested = reinterpret_cast<const RECT*>(ev.lParam);
 		if (suggested) {

@@ -35,10 +35,15 @@ w32oop::ui::TrayIcon::~TrayIcon() {
 void w32oop::ui::TrayIcon::handle_event(EventData& ev) {
 	if (ev.message == nid.uCallbackMessage) {
 		// 处理托盘图标的点击事件
-		if (ev.lParam == WM_RBUTTONUP && pMenu) {
+		if (ev.lParam == WM_RBUTTONUP) {
 			ev.preventDefault(); // 阻止默认行为
 
-			pMenu->pop(); // 显示菜单
+			if (onRightclickHandler) {
+				onRightclickHandler(ev);
+			}
+			else if (pMenu) {
+				pMenu->pop(); // 显示菜单
+			}
 			PostMessage(win.hwnd, WM_NULL, 0, 0);
 
 			return;

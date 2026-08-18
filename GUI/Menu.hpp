@@ -201,7 +201,7 @@ namespace w32oop::ui {
 		}
 		// 在指定位置弹出菜单（显示菜单）。
 		inline int pop(const POINT& pt, Window* owner = nullptr) {
-			return pop(pt.x, pt.y, owner); // 弹出菜单
+			return pop(pt.x, pt.y, true, owner); // 弹出菜单
 		}
 		// 运行对应的处理程序
 		bool run(int nId);

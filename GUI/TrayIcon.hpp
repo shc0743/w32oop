@@ -104,6 +104,7 @@ namespace w32oop::ui {
 	protected:
 		function<void(EventData&)> onClickHandler = nullptr; // 点击事件处理器
 		function<void(EventData&)> onDblclickHandler = nullptr; // 双击事件处理器
+		function<void(EventData&)> onRightclickHandler = nullptr; // 右键事件处理器
 		function<void(EventData&)> onBalloonClickHandler = nullptr; // 通知点击事件处理器
 	public:
 		virtual function<void(EventData&)>& onClick() {
@@ -117,6 +118,12 @@ namespace w32oop::ui {
 		}
 		virtual void onDblclick(function<void(EventData&)> handler) {
 			onDblclickHandler = handler; // 设置双击事件处理器
+		}
+		virtual function<void(EventData&)>& onRightclick() {
+			return onRightclickHandler; // 获取右键事件处理器
+		}
+		virtual void onRightclick(function<void(EventData&)> handler) {
+			onRightclickHandler = handler; // 设置右键事件处理器
 		}
 		virtual function<void(EventData&)>& onBalloonClick() {
 			return onBalloonClickHandler; // 获取通知点击事件处理器
