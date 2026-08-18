@@ -229,7 +229,7 @@ private:
 	bool is_main_window = false;
 	bool _disable_framework_dpi_virtualization_for_this_window = false;
 	float _dpi_scale_factor = 1.0f;
-
+	void _XxxInternalFixDpiForWindow();
 protected:
 	inline void set_framework_dpi_virtualization(bool enable) {
 		_disable_framework_dpi_virtualization_for_this_window = !enable;
@@ -579,6 +579,7 @@ public:
 
 package internal declare;
 UINT get_system_dpi();
+UINT get_window_dpi(HWND hwnd);
 float system_dpi_scale_factor();
 
 endpackage;

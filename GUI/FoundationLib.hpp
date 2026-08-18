@@ -353,7 +353,8 @@ public:
 	InputDialog(wstring title = L"Input", int width = 320, int height = 145) :
 		Window(title, (int)(width * w32oop::ui::internal::system_dpi_scale_factor() + 0.5f),
 			(int)(height * w32oop::ui::internal::system_dpi_scale_factor() + 0.5f), 0, 0, WS_POPUP | WS_SYSMENU | WS_SIZEBOX),
-		m_scale((float)w32oop::ui::internal::system_dpi_scale_factor())
+		m_scale((float)w32oop::ui::internal::system_dpi_scale_factor()),
+		_logical_width(width), _logical_height(height)
 	{
 		set_framework_dpi_virtualization(false);
 	};
@@ -367,6 +368,7 @@ protected:
 	}
 
 	float m_scale = 1.0f;
+	int _logical_width = 320, _logical_height = 145;
 	wstring prompt;
 	Edit editBox;
 	Button accept, reject;

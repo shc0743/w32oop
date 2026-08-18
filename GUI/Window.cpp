@@ -82,6 +82,18 @@ namespace w32oop::ui::internal {
 		ReleaseDC(NULL, screen);
 		return dpi ? dpi : 96;
 	}
+	UINT get_window_dpi(HWND hwnd) {
+		HMODULE user32 = GetModuleHandleW(L"user32.dll");
+		if (user32) {
+			auto pGetDpiForWindow = (UINT(WINAPI*)(HWND))GetProcAddress(user32, "GetDpiForWindow");
+			if (pGetDpiForWindow) {
+				UINT dpi = pGetDpiForWindow(hwnd);
+				if (dpi) return dpi;
+			}
+		}
+		// 老系统没有 GetDpiForWindow，退回系统 DPI。
+		return get_system_dpi();
+	}
 	float system_dpi_scale_factor() {
 		return (float)get_system_dpi() / 96.0f;
 	}
@@ -179,6 +191,19 @@ HWND Window::new_window() {
 	);
 }
 
+void Window::_XxxInternalFixDpiForWindow() {
+	// GetDpiForSystem 在实时切换缩放后可能返回旧值，以窗口实际 DPI 为准校正。
+	UINT actualDpi = w32oop::ui::internal::get_window_dpi(hwnd);
+	float actualFactor = (float)actualDpi / 96.0f;
+	if (actualFactor != _dpi_scale_factor) {
+		_dpi_scale_factor = actualFactor;
+		SetWindowPos(hwnd, nullptr,
+			scaled(setup_info->x), scaled(setup_info->y),
+			scaled(setup_info->width), scaled(setup_info->height),
+			SWP_NOZORDER | SWP_NOACTIVATE);
+	}
+}
+
 void Window::update_dpi_scale_factor(float new_factor) {
 	_dpi_scale_factor = new_factor;
 
@@ -266,6 +291,7 @@ void Window::create() {
 		throw window_creation_failure_exception();
 	}
 	try {
+		_XxxInternalFixDpiForWindow();
 		delete setup_info;
 		setup_info = nullptr;
 		lock_guard gg(managed_lock);
@@ -994,7 +1020,7 @@ void Window::remove_all_hot_key_global() {
 
 BOOL Window::GetClientRect(HWND hWnd, LPRECT lpRect) const {
 	BOOL result = ::GetClientRect(hWnd, lpRect);
-	if (!managed.contains(hwnd)) return result;
+	if (!is_framework_window(hWnd)) return result;
 	lpRect->left = unscaled(lpRect->left);
 	lpRect->top = unscaled(lpRect->top);
 	lpRect->right = unscaled(lpRect->right);
@@ -1004,7 +1030,7 @@ BOOL Window::GetClientRect(HWND hWnd, LPRECT lpRect) const {
 
 BOOL Window::GetWindowRect(HWND hWnd, LPRECT lpRect) const {
 	BOOL result = ::GetWindowRect(hWnd, lpRect);
-	if (!managed.contains(hwnd)) return result;
+	if (!is_framework_window(hWnd)) return result;
 	lpRect->left = unscaled(lpRect->left);
 	lpRect->top = unscaled(lpRect->top);
 	lpRect->right = unscaled(lpRect->right);

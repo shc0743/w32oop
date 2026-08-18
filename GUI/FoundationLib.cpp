@@ -42,6 +42,18 @@ wstring w32oop::ui::foundation::StatusBar::get_text(int part) const {
 }
 
 void w32oop::ui::foundation::InputDialog::onCreated() {
+	// GetDpiForSystem 在实时切换缩放后可能返回旧值，以窗口实际 DPI 为准校正。
+	UINT actualDpi = w32oop::ui::internal::get_window_dpi(hwnd);
+	float actualScale = (float)actualDpi / 96.0f;
+	if (actualScale != m_scale) {
+		m_scale = actualScale;
+		RECT rc{}; ::GetWindowRect(hwnd, &rc);
+		SetWindowPos(hwnd, nullptr, rc.left, rc.top,
+			(int)(_logical_width * actualScale + 0.5f),
+			(int)(_logical_height * actualScale + 0.5f),
+			SWP_NOZORDER | SWP_NOACTIVATE);
+	}
+
 	center(); set_topmost(true);
 
 	editBox = Edit(hwnd, L"", 1, 1); editBox.create();
@@ -158,9 +170,7 @@ void w32oop::ui::foundation::InputDialog::onHittest(EventData& ev) {
 void w32oop::ui::foundation::InputDialog::doLayout(EventData& ev) {
 	if (!editBox || !accept || !reject) return;
 
-	// 窗口级虚拟化已关闭：GetClientRect 返回物理客户区。
-	// 固定偏移量必须按 m_scale 缩放，否则控件与窗口（以及 paint 中
-	// 使用 s() 的提示文字/标题栏）在 DPI > 96 时比例错乱、互相重叠。
+	// 窗口级虚拟化已关闭：GetClientRect 返回物理客户区；固定偏移量按 m_scale 缩放。
 	RECT rc{}; GetClientRect(hwnd, &rc);
 	auto w = rc.right - rc.left, h = rc.bottom - rc.top;
 
