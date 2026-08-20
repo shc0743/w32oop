@@ -56,7 +56,7 @@ void w32oop::ui::foundation::InputDialog::onCreated() {
 
 	center(); set_topmost(true);
 
-	editBox = Edit(hwnd, L"", 1, 1); editBox.create();
+	editBox = Edit(hwnd, L"", 1, 1, 0, 0, Edit::STYLE | (_usePassmode ? ES_PASSWORD : 0)); editBox.create();
 	accept = Button(hwnd, L"OK", 1, 1, 0, 0, 0, Button::STYLE | BS_DEFPUSHBUTTON);
 	reject = Button(hwnd, L"Cancel", 1, 1);
 	accept.create(); reject.create();

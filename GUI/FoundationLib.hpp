@@ -376,6 +376,7 @@ protected:
 	bool rejected = true;
 	bool isActive = true;
 	bool isCreated = false;
+	bool _usePassmode = false;
 	wstring textBuffer;
 
 	void onCreated() override;
@@ -441,6 +442,10 @@ public:
 	void setButtonsText(wstring a, wstring b) {
 		setAcceptButtonText(a);
 		setRejectButtonText(b);
+	}
+	bool setPasswordMode(bool mode = true) {
+		if (editBox.created()) return false;
+		_usePassmode = mode;
 	}
 	void setPasswordChar(TCHAR c) { editBox.password_char(c); }
 };

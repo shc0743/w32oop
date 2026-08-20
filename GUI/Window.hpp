@@ -174,10 +174,10 @@ public:
 	virtual const wstring get_class_name() const;
 
 protected:
-	virtual const HICON get_window_icon() const {
+	virtual HICON get_window_icon() {
 		return NULL;
 	}
-	virtual const COLORREF get_window_background_color() const {
+	virtual COLORREF get_window_background_color() {
 		return RGB(255, 255, 255);
 	}
 	// 虚函数：判断窗口类是否已注册（控件类可覆盖此方法）

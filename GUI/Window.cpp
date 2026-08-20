@@ -207,15 +207,19 @@ void Window::_XxxInternalFixDpiForWindow() {
 void Window::update_dpi_scale_factor(float new_factor, bool _Indirect) {
 	_dpi_scale_factor = new_factor;
 
-	if (!_Indirect) {
-		auto controls = GetAllChildWindows(hwnd);
-		for (auto hwnd : controls) try {
-			lock_guard gg(managed_lock);
-			if (!managed.contains(hwnd)) continue;
-			managed.at(hwnd)->update_dpi_scale_factor(new_factor, true);
-		}
-		catch (...) {}
-	}
+	//if (!_Indirect) {
+	//	auto controls = GetAllChildWindows(hwnd);
+	//	for (auto hwnd : controls) try {
+	//		// if window is not managed, skip it
+	//		{
+	//			lock_guard gg(managed_lock);
+	//			if (!managed.contains(hwnd)) continue;
+	//		}
+	//		// send a framework-reserved message to update the factor
+	//		::SendMessageW(hwnd, WM_DPICHANGED_AFTERPARENT)
+	//	}
+	//	catch (...) {}
+	//}
 }
 
 bool Window::is_framework_dpi_virtualization_allowed() const {
@@ -297,8 +301,10 @@ void Window::create() {
 		_XxxInternalFixDpiForWindow();
 		delete setup_info;
 		setup_info = nullptr;
-		lock_guard gg(managed_lock);
-		managed[hwnd] = this;
+		{
+			lock_guard gg(managed_lock);
+			managed[hwnd] = this;
+		}
 		setup_event_handlers();
 		m_onCreated();
 		onCreated();
@@ -571,6 +577,8 @@ LRESULT Window::WndProc(UINT msg, WPARAM wParam, LPARAM lParam) {
 				lock_guard gg(managed_lock);
 				target = managed.at(targetWindow);
 			}
+			// TODO: 这里可能在极端条件下锁解锁但窗口被销毁，但如果直接整体锁定又可能导致死锁
+			// 目前暂时没有良好解决方案，只能尽量避免同一个窗口的控件在另一个线程中创建。
 			return target->dispatchMessageToWindowAndGetResult(msg_t(notifCode + WINDOW_NOTIFICATION_CODES), (UINT)msg, lParam, true);
 		}
 		catch (std::out_of_range&) {
@@ -837,11 +845,13 @@ void Window::m_onCreated() {
 		//if (GetParent(hwnd)) return; // 防止无限转发
 		auto controls = GetAllChildWindows(hwnd);
 		for (auto hwnd : controls) try {
-			Window* w;
-			lock_guard gg(managed_lock);
-			if (!managed.contains(hwnd)) continue;
-			w = managed.at(hwnd);
-			if (w) w->dispatchEvent(ev);
+			HWND w;
+			{
+				lock_guard gg(managed_lock);
+				if (!managed.contains(hwnd)) continue;
+				w = *managed.at(hwnd);
+			}
+			if (w) SendMessageW(w, (UINT)ev.message, ev.wParam, ev.lParam);
 		} catch (...) {}
 	});
 	addEventListener(WM_DPICHANGED, [this](EventData& ev) {
@@ -857,6 +867,10 @@ void Window::m_onCreated() {
 				SWP_NOZORDER | SWP_NOACTIVATE);
 		}
 		ev.returnValue(0);
+	});
+	addEventListener(WM_DPICHANGED_BEFOREPARENT, [this](EventData& ev) {
+		if (!is_framework_dpi_virtualization_allowed()) return;
+		update_dpi_scale_factor((float)internal::get_window_dpi(hwnd) / 96.0f, false);
 	});
 }
 
