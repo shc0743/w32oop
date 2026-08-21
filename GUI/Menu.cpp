@@ -65,8 +65,6 @@ int w32oop::ui::Menu::pop(long x, long y, bool run_handler, Window* owner) {
 	if (!hostWindow) {
 		throw exceptions::window_creation_failure_exception("Failed to create temporary window for menu popup.");
 	}
-	ShowWindow(hostWindow, SW_NORMAL);
-	SetForegroundWindow(hostWindow);
 	int result = TrackPopupMenu(
 		hMenu, // 菜单句柄
 		TPM_RETURNCMD | TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RIGHTBUTTON,

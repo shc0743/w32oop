@@ -194,10 +194,10 @@ namespace w32oop::ui {
 		// 弹出菜单（显示菜单）。
 		int pop(long x, long y, bool run_handler = true, Window* owner = nullptr);
 		// 在鼠标所在位置弹出菜单（显示菜单）。
-		inline int pop(Window* owner = nullptr) {
+		inline int pop() {
 			POINT pt{};
 			GetCursorPos(&pt); // 获取鼠标位置
-			return pop(pt, owner); // 弹出菜单
+			return pop(pt); // 弹出菜单
 		}
 		// 在指定位置弹出菜单（显示菜单）。
 		inline int pop(const POINT& pt, Window* owner = nullptr) {
