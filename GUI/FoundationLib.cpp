@@ -58,23 +58,26 @@ void w32oop::ui::foundation::InputDialog::onCreated() {
 
 	editBox = Edit(hwnd, L"", 1, 1, 0, 0, Edit::STYLE | (_usePassmode ? ES_PASSWORD : 0)); editBox.create();
 	accept = Button(hwnd, L"OK", 1, 1, 0, 0, 0, Button::STYLE | BS_DEFPUSHBUTTON);
-	reject = Button(hwnd, L"Cancel", 1, 1);
+	reject = Button(hwnd, L"Cancel", 1, 1, 0, 0, IDCANCEL);
 	accept.create(); reject.create();
 	accept.onClick([this](EventData&) { rejected = false; close(); });
 	reject.onClick([this](EventData&) { rejected = true; close(); });
 
-	register_hot_key(false, false, false, VK_RETURN, [this](HotKeyProcData& ev) {
+	auto onOk = [this](HotKeyProcData& ev) {
 		if (ES_MULTILINE & GetWindowLongPtr(editBox, GWL_STYLE)) return;
 		ev.preventDefault();
 		rejected = false;
 		close();
-	}, HotKeyOptions::Windowed);
-
-	register_hot_key(false, false, false, VK_ESCAPE, [this](HotKeyProcData& ev) {
+	};
+	auto onCancel = [this](HotKeyProcData& ev) {
 		ev.preventDefault();
 		rejected = true;
 		close();
-	}, HotKeyOptions::Windowed);
+	};
+	register_hot_key(0, 0, 0, VK_RETURN, onOk, HotKeyOptions::Windowed);
+	register_hot_key(1, 0, 0, VK_RETURN, onOk, HotKeyOptions::Windowed);
+	register_hot_key(1, 0, 1, VK_RETURN, onOk, HotKeyOptions::Windowed);
+	register_hot_key(0, 0, 0, VK_ESCAPE, onCancel, HotKeyOptions::Windowed);
 
 	// 在这里创建 paint 中所需的字体。
 	promptFont = CreateFontW(

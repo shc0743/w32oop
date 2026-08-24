@@ -446,6 +446,7 @@ public:
 	bool setPasswordMode(bool mode = true) {
 		if (editBox.created()) return false;
 		_usePassmode = mode;
+		return true;
 	}
 	void setPasswordChar(TCHAR c) { editBox.password_char(c); }
 };

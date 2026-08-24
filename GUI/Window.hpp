@@ -227,6 +227,7 @@ protected:
 private:
 	bool _created = false;
 	bool is_main_window = false;
+	bool _is_compositioning = false;
 	bool _disable_framework_dpi_virtualization_for_this_window = false;
 	float _dpi_scale_factor = 1.0f;
 	void _XxxInternalFixDpiForWindow();
@@ -324,6 +325,10 @@ public:
 		lock_guard gg(managed_lock);
 		if (managed.contains(parent)) return *(managed.at(parent));
 		throw window_parent_not_managed_exception();
+	}
+
+	inline bool is_compositioning() const {
+		return _is_compositioning;
 	}
 
 	// 窗口操作方法
@@ -466,24 +471,44 @@ protected:
 	static LRESULT CALLBACK StaticWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 private:
 	// 消息处理函数
-	LRESULT WndProc(UINT msg, WPARAM wParam, LPARAM lParam);
+	LRESULT _MyWndProc(UINT msg, WPARAM wParam, LPARAM lParam);
+	void _MyInternalWndProc(UINT msg, WPARAM wParam, LPARAM lParam);
 	LRESULT dispatchMessageToWindowAndGetResult(msg_t msg, WPARAM wParam, LPARAM lParam, bool isNotification = false);
+	void _RunScheduledInvokeLaterTask(UINT msg, WPARAM wParam, LPARAM lParam);
 
 	LRESULT destroy_handler_internal(WPARAM wParam, LPARAM lParam);
 
-	using EventRouter = unordered_map<msg_t,
+	using __EventRouter = unordered_map<msg_t,
 		std::vector<
 			std::function<void(EventData&)>
 		>
 	>;
-	EventRouter router;
-	recursive_mutex router_lock;
+	__EventRouter __message_router;
+	std::vector<PVOID> __invokeLaterList;
 
 protected:
-	// 注册事件处理器
+	// 注册事件处理器。处理器的注册与移除必须在创建窗口的同一个线程中进行。
 	virtual void addEventListener(msg_t msg, function<void(EventData&)> handler) final;
-	virtual void removeEventListener(msg_t msg) final;
+	// 移除事件处理器。处理器的注册与移除必须在创建窗口的同一个线程中进行。
 	virtual void removeEventListener(msg_t msg, function<void(EventData&)> handler) final;
+	// 移除指定消息的所有事件处理器。处理器的注册与移除必须在创建窗口的同一个线程中进行。
+	virtual void removeEventListener(msg_t msg) final;
+
+	// 在下一次窗口消息处理完成后运行指定的回调。此函数必须在创建窗口的同一个线程中进行；
+	// 若有其他线程向窗口请求运行任务的需求（如 runInUiThread）请自定义窗口消息处理程序然后 PostMessage 。
+	// 出于性能考虑目前只接受函数指针；请使用第一个参数来标识this；这个EventData上阻止默认行为将不起作用
+	template<typename PThis> requires std::is_base_of_v<Window, PThis>
+	inline void invokeLater(void(*cb)(PThis*, EventData&)) {
+		validate_hwnd();
+		if (GetCurrentThreadId() != _owner) {
+			throw window_dangerous_thread_operation_exception("Not allowed to change event handlers outside the owner thread!");
+		}
+		// 擦除类型以获取效率
+		__invokeLaterList.push_back(cb);
+	}
+	inline void invokeLater(void(*cb)(Window*, EventData&)) {
+		return invokeLater<Window>(cb);
+	}
 
 	virtual void setup_event_handlers() = 0;
 

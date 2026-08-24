@@ -522,20 +522,23 @@ LRESULT Window::StaticWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	}
 
 	if (pThis) {
-		return pThis->WndProc(msg, wParam, lParam);
+		auto result = pThis->_MyWndProc(msg, wParam, lParam);
+		pThis->_RunScheduledInvokeLaterTask(msg, wParam, lParam);
+		return result;
 	}
 	else {
 		return DefWindowProc(hwnd, msg, wParam, lParam);
 	}
 }
 
-LRESULT Window::WndProc(UINT msg, WPARAM wParam, LPARAM lParam) {
+LRESULT Window::_MyWndProc(UINT msg, WPARAM wParam, LPARAM lParam) {
 	if (!hwnd) return 0;
 	if (msg == WM_DESTROY) {
 		// 窗口被销毁
 		return destroy_handler_internal(wParam, lParam);
 	}
 	// 处理窗口消息
+	_MyInternalWndProc(msg, wParam, lParam);
 	// 首先判断特殊的窗口消息，检查源窗口到底是哪个
 	if (msg == WM_COMMAND || msg == WM_NOTIFY) {
 		HWND targetWindow = NULL;
@@ -591,6 +594,51 @@ LRESULT Window::WndProc(UINT msg, WPARAM wParam, LPARAM lParam) {
 	return dispatchMessageToWindowAndGetResult(msg, wParam, lParam, false);
 }
 
+void Window::_MyInternalWndProc(UINT msg, WPARAM wParam, LPARAM lParam) {
+	switch (msg) {
+	case WM_SYSCOLORCHANGE: 
+		{
+			// 转发到控件。
+			// https://learn.microsoft.com/zh-cn/windows/win32/controls/control-messages
+			auto controls = GetAllChildWindows(hwnd);
+			for (auto hwnd : controls) try {
+				HWND w;
+				{
+					lock_guard gg(managed_lock);
+					if (!managed.contains(hwnd)) continue;
+					w = *managed.at(hwnd);
+				}
+				if (w) SendMessageW(w, (UINT)msg, wParam, lParam);
+			}
+			catch (...) {}
+		}
+		break;
+		
+	case WM_DPICHANGED_BEFOREPARENT:
+		{
+			if (!is_framework_dpi_virtualization_allowed()) break;
+			update_dpi_scale_factor((float)internal::get_window_dpi(hwnd) / 96.0f, false);
+		}
+		break;
+
+	case WM_IME_STARTCOMPOSITION:
+		_is_compositioning = true;
+		if (has_managed_parent()) parent()._MyInternalWndProc(msg, wParam, lParam); // forward to parent
+		break;
+
+	case WM_NCACTIVATE:
+		if (wParam) break; // wParam is truthy: activated
+		[[fallthrough]];
+	case WM_IME_ENDCOMPOSITION:
+		invokeLater([](Window* w, EventData&) { w->_is_compositioning = false; });
+		if (has_managed_parent()) parent()._MyInternalWndProc(msg, wParam, lParam); // forward to parent
+		break;
+
+	default:
+		return;
+	}
+}
+
 LRESULT Window::dispatchMessageToWindowAndGetResult(msg_t msg, WPARAM wParam, LPARAM lParam, bool isNotification) {
 	// 构造EventData
 	EventData data(hwnd, msg, wParam, lParam, this);
@@ -607,6 +655,22 @@ LRESULT Window::dispatchEvent(EventData data) {
 
 LRESULT Window::default_handler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	return ::DefWindowProcW(hwnd, message, wParam, lParam);
+}
+
+void Window::_RunScheduledInvokeLaterTask(UINT msg, WPARAM wParam, LPARAM lParam) {
+	// 设计保证单线程，不需要锁
+	// 但仍然需要确保数据一致性
+	if (__invokeLaterList.empty()) return;
+	auto copy = vector(__invokeLaterList);
+	__invokeLaterList.clear();
+
+	EventData ev(hwnd, msg, wParam, lParam, this);
+	ev.isNotification = false;
+	ev.bubble = false;
+	
+	for (auto& i : copy) {
+		((void(*)(void*, EventData&))(i))(this, ev);
+	}
 }
 
 LRESULT Window::dispatchEvent(EventData& data, bool isTrusted, bool shouldBubble) {
@@ -627,9 +691,9 @@ LRESULT Window::dispatchEvent(EventData& data, bool isTrusted, bool shouldBubble
 }
 
 void Window::dispatchEventForWindow(EventData& data) {
-	if (!router.contains(data.message)) return;
+	if (!__message_router.contains(data.message)) return;
 	try {
-		auto& handlers = router.at(data.message);
+		auto& handlers = __message_router.at(data.message);
 		for (auto& handler : handlers) {
 			try {
 				if (handler) handler(data);
@@ -762,6 +826,7 @@ LRESULT __stdcall Window::handlekb(
 			if (pair.first.scope == HotKeyOptions::Windowed) {
 				HWND currentWindow = GetForegroundWindow();
 				if (currentWindow != pair.first.source->hwnd) continue;
+				if (pair.first.source->is_compositioning()) continue;
 			}
 			if (pair.first.scope == HotKeyOptions::Thread) {
 				HWND currentWindow = GetForegroundWindow();
@@ -839,21 +904,7 @@ void Window::onDestroy() {}
 
 void Window::m_onCreated() {
 	SendMessageW(hwnd, WM_SETFONT, (WPARAM)get_font(), 0);
-	addEventListener(WM_SYSCOLORCHANGE, [this](EventData& ev) {
-		// 转发到控件。
-		// https://learn.microsoft.com/zh-cn/windows/win32/controls/control-messages
-		//if (GetParent(hwnd)) return; // 防止无限转发
-		auto controls = GetAllChildWindows(hwnd);
-		for (auto hwnd : controls) try {
-			HWND w;
-			{
-				lock_guard gg(managed_lock);
-				if (!managed.contains(hwnd)) continue;
-				w = *managed.at(hwnd);
-			}
-			if (w) SendMessageW(w, (UINT)ev.message, ev.wParam, ev.lParam);
-		} catch (...) {}
-	});
+	// 这个由于需要修改返回值不能塞到InternalWndProc
 	addEventListener(WM_DPICHANGED, [this](EventData& ev) {
 		if (!is_framework_dpi_virtualization_allowed()) return;
 		update_dpi_scale_factor((float)HIWORD(ev.wParam) / 96.0f, false);
@@ -867,10 +918,6 @@ void Window::m_onCreated() {
 				SWP_NOZORDER | SWP_NOACTIVATE);
 		}
 		ev.returnValue(0);
-	});
-	addEventListener(WM_DPICHANGED_BEFOREPARENT, [this](EventData& ev) {
-		if (!is_framework_dpi_virtualization_allowed()) return;
-		update_dpi_scale_factor((float)internal::get_window_dpi(hwnd) / 96.0f, false);
 	});
 }
 
@@ -913,15 +960,15 @@ void Window::addEventListener(msg_t msg, function<void(EventData&)> handler) {
 	if (GetCurrentThreadId() != _owner) {
 		throw window_dangerous_thread_operation_exception("Not allowed to change event handlers outside the owner thread!");
 	}
-	lock_guard gg(router_lock);
 
 	try {
-		if (!router.contains(msg)) {
+		if (!__message_router.contains(msg)) {
 			// 如果消息不存在，创建一个新的消息处理函数列表
 			msg_t msg2 = msg;
-			router.insert(std::make_pair<msg_t, vector<function<void(EventData&)>>>(std::move(msg2), std::vector<function<void(EventData&)>>()));
+			__message_router.insert(std::make_pair<msg_t, vector<function<void(EventData&)>>>(
+				std::move(msg2), std::vector<function<void(EventData&)>>()));
 		}
-		router.at(msg).push_back((handler));
+		__message_router.at(msg).push_back((handler));
 	}
 	catch (...) {
 		throw;
@@ -932,19 +979,17 @@ void Window::removeEventListener(msg_t msg) {
 	if (GetCurrentThreadId() != _owner) {
 		throw window_dangerous_thread_operation_exception("Not allowed to change event handlers outside the owner thread!");
 	}
-	lock_guard gg(router_lock);
-	if (!router.contains(msg)) return;
+	if (!__message_router.contains(msg)) return;
 	// 清除指定的消息处理函数列表
-	router.erase(msg);
+	__message_router.erase(msg);
 }
 
 void Window::removeEventListener(msg_t msg, function<void(EventData&)> handler) {
 	if (GetCurrentThreadId() != _owner) {
 		throw window_dangerous_thread_operation_exception("Not allowed to change event handlers outside the owner thread!");
 	}
-	lock_guard gg(router_lock);
-	if (!router.contains(msg)) return;
-	auto& handlers = router.at(msg);
+	if (!__message_router.contains(msg)) return;
+	auto& handlers = __message_router.at(msg);
 	// 查找匹配的 handler
 	auto it = std::find_if(handlers.begin(), handlers.end(),
 		[&handler](const auto& func) {
