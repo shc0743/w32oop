@@ -150,16 +150,19 @@ namespace w32oop::system {
 		T get_value(wstring valueName, bool bNoExpand = false) const {
 			return get(valueName, bNoExpand).get<T>();
 		}
-		// 直接获取特定键的值，valueName可以为空字符串，表示获取(默认)键的值
+		// 获取特定键的值，valueName可以为空字符串，表示获取(默认)键的值
 		template<typename T>
 		std::optional<T> get_value_if(wstring valueName, bool bNoExpand = false) const {
-			RegistryValue value = get(valueName, bNoExpand);
-			if (auto p = value.get_if<T>()) {
-				return *p;
+			try {
+				RegistryValue value = get(valueName, bNoExpand);
+				if (auto p = value.get_if<T>()) {
+					return *p;
+				}
 			}
+			catch (...) {}
 			return std::nullopt;
 		}
-		// 直接获取特定键的值，valueName可以为空字符串，表示获取(默认)键的值
+		// 获取特定键的值(带fallback)，valueName可以为空字符串，表示获取(默认)键的值，不会抛出异常
 		template<typename T>
 		T get_value_or(wstring valueName, T fallback, bool bNoExpand = false) const noexcept {
 			try {

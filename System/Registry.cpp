@@ -20,11 +20,13 @@ RegistryKey w32oop::system::RegistryKey::create(wstring subkeyName, REGSAM acces
 	if (result == ERROR_SUCCESS) {
 		if (bFailIfExists && dwDisposition == REG_OPENED_EXISTING_KEY) {
 			RegCloseKey(hSubKey);
+			SetLastError(ERROR_FILE_EXISTS);
 			throw exceptions::registry_key_exists_exception("Registry key already exists.");
 		}
 		return RegistryKey(hSubKey);
 	}
 	else {
+		SetLastError((DWORD)result);
 		throw exceptions::invalid_registry_handle_exception("Failed to create registry key.");
 	}
 }
@@ -36,6 +38,7 @@ RegistryKey w32oop::system::RegistryKey::open(wstring subkeyName, REGSAM access)
 		return RegistryKey(hSubKey);
 	}
 	else {
+		SetLastError((DWORD)result);
 		throw exceptions::invalid_registry_handle_exception("Failed to open registry key.");
 	}
 }
@@ -46,6 +49,7 @@ RegistryValue w32oop::system::RegistryKey::get(wstring valueName, bool bNoExpand
 	// 查询值的大小
 	auto result = RegQueryValueExW(hKey, valueName.c_str(), nullptr, &type, nullptr, &size);
 	if (result != ERROR_SUCCESS) {
+		SetLastError((DWORD)result);
 		throw exceptions::registry_query_failed_exception("Failed to query registry value size");
 	}
 	if (size == 0) {
@@ -65,6 +69,7 @@ RegistryValue w32oop::system::RegistryKey::get(wstring valueName, bool bNoExpand
 		DWORD mySize = size, myType = type;
 		auto result = RegGetValueW(hKey, nullptr, valueName.c_str(), flag, &myType, buffer.get(), &mySize);
 		if (result != ERROR_SUCCESS) {
+			SetLastError((DWORD)result);
 			if (result == ERROR_MORE_DATA) {
 				// Unexpected!
 			}
@@ -73,7 +78,10 @@ RegistryValue w32oop::system::RegistryKey::get(wstring valueName, bool bNoExpand
 			}
 			throw exceptions::registry_query_failed_exception("Failed to get registry value.");
 		}
-		if (myType != type) throw exceptions::registry_query_failed_exception("Registry data changed during program execution.");
+		if (myType != type) {
+			SetLastError(ERROR_MEDIA_CHANGED);
+			throw exceptions::registry_query_failed_exception("Registry data changed during program execution.");
+		}
 
 		if (type == REG_MULTI_SZ) {
 			// 处理多字符串类型
@@ -97,6 +105,7 @@ RegistryValue w32oop::system::RegistryKey::get(wstring valueName, bool bNoExpand
 
 		// mySize 将包含终止null
 		if (mySize < 2) {
+			SetLastError(ERROR_EMPTY);
 			throw exceptions::registry_query_failed_exception("Failed to get registry value.");
 		}
 		wstring value(reinterpret_cast<wchar_t*>(buffer.get()), (size_t(mySize) - 2) / sizeof(wchar_t));
@@ -113,12 +122,16 @@ RegistryValue w32oop::system::RegistryKey::get(wstring valueName, bool bNoExpand
 		DWORD mySize = size, myType = type;
 		auto result = RegQueryValueExW(hKey, valueName.c_str(), nullptr, &myType, buffer.get(), &mySize);
 		if (result != ERROR_SUCCESS) {
+			SetLastError((DWORD)result);
 			if (result == ERROR_FILE_NOT_FOUND) {
 				throw exceptions::registry_key_not_exist_exception("Registry key does not exist.");
 			}
 			throw exceptions::registry_query_failed_exception("Failed to query registry value.");
 		}
-		if (myType != type) throw exceptions::registry_query_failed_exception("Registry data changed during program execution.");
+		if (myType != type) {
+			SetLastError(ERROR_MEDIA_CHANGED);
+			throw exceptions::registry_query_failed_exception("Registry data changed during program execution.");
+		}
 		if (type == REG_DWORD) {
 			DWORD value = *reinterpret_cast<DWORD*>(buffer.get());
 			val = value;
@@ -140,6 +153,7 @@ RegistryValue w32oop::system::RegistryKey::get(wstring valueName, bool bNoExpand
 		break;
 	default:
 		// currently REG_LINK and REG_NONE are not supported
+		SetLastError(ERROR_NOT_SUPPORTED);
 		throw exceptions::registry_value_type_not_supported_exception("Registry value type not supported.");
 	}
 }
@@ -147,6 +161,7 @@ RegistryValue w32oop::system::RegistryKey::get(wstring valueName, bool bNoExpand
 void w32oop::system::RegistryKey::set(wstring valueName, const RegistryValue& value) {
 	DWORD type = value.type();
 	if (type == REG_NONE) {
+		SetLastError(ERROR_NOT_SUPPORTED);
 		throw exceptions::registry_value_type_not_supported_exception("Cannot set a value of type REG_NONE.");
 	}
 	DWORD size = 0;
@@ -156,6 +171,7 @@ void w32oop::system::RegistryKey::set(wstring valueName, const RegistryValue& va
 		PCWSTR cstr = strValue.c_str();
 		auto result = RegSetValueExW(hKey, valueName.c_str(), 0, type, reinterpret_cast<const BYTE*>(cstr), size);
 		if (result != ERROR_SUCCESS) {
+			SetLastError((DWORD)result);
 			throw exceptions::registry_write_failed_exception("Failed to set registry value.");
 		}
 	}
@@ -177,6 +193,7 @@ void w32oop::system::RegistryKey::set(wstring valueName, const RegistryValue& va
 		}
 		auto result = RegSetValueExW(hKey, valueName.c_str(), 0, type, reinterpret_cast<const BYTE*>(buffer.get()), size);
 		if (result != ERROR_SUCCESS) {
+			SetLastError((DWORD)result);
 			throw exceptions::registry_write_failed_exception("Failed to set registry value.");
 		}
 	}
@@ -185,6 +202,7 @@ void w32oop::system::RegistryKey::set(wstring valueName, const RegistryValue& va
 		auto data = value.get<ULONGLONG>();
 		auto result = RegSetValueExW(hKey, valueName.c_str(), 0, type, reinterpret_cast<const BYTE*>(&data), size);
 		if (result != ERROR_SUCCESS) {
+			SetLastError((DWORD)result);
 			throw exceptions::registry_write_failed_exception("Failed to set registry value.");
 		}
 	}
@@ -196,6 +214,7 @@ void w32oop::system::RegistryKey::set(wstring valueName, const RegistryValue& va
 		}
 		auto result = RegSetValueExW(hKey, valueName.c_str(), 0, type, reinterpret_cast<const BYTE*>(&data), size);
 		if (result != ERROR_SUCCESS) {
+			SetLastError((DWORD)result);
 			throw exceptions::registry_write_failed_exception("Failed to set registry value.");
 		}
 	}
@@ -204,10 +223,12 @@ void w32oop::system::RegistryKey::set(wstring valueName, const RegistryValue& va
 		size = static_cast<DWORD>(binValue.size());
 		auto result = RegSetValueExW(hKey, valueName.c_str(), 0, type, binValue.data(), size);
 		if (result != ERROR_SUCCESS) {
+			SetLastError((DWORD)result);
 			throw exceptions::registry_write_failed_exception("Failed to set registry value.");
 		}
 	}
 	else {
+		SetLastError(ERROR_NOT_SUPPORTED);
 		throw exceptions::registry_value_type_not_supported_exception("Registry value type not supported.");
 	}
 }
