@@ -15,12 +15,14 @@ class YourWindowClass : public Window {
 public:
 	YourWindowClass() : Window(L"Your Window Title", 400, 300, 0, 0, WS_OVERLAPPEDWINDOW) {}
 private:
-	Static text;
+	StaticEx text;
 	Button btn;
 	Edit textBox;
 	void onCreated() override {
 		// lifecycle hooks
-		text = Static(*this, L"...", 250, 30, 10, 90);
+		text = StaticEx(*this, L"...", 250, 30, 10, 90);
+		text.color(RgbColor("#abcdef"));
+		text.backgroundColor(RgbColor(0x123456));
 		text.create();
 
 		btn = Button(*this, L"Click me!", 100, 30, 10, 10);

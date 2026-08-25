@@ -35,6 +35,7 @@ using namespace w32oop::concurrency;
 #include "./GUI/Window.hpp"
 #include "./GUI/Menu.hpp"
 #include "./GUI/TrayIcon.hpp"
+#include "./GUI/ParseColor.hpp"
 using namespace w32oop::ui;
 #include "./GUI/FoundationLib.hpp"
 using namespace w32oop::ui::foundation;

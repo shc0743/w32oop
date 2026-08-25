@@ -18,36 +18,50 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 namespace w32oop::ui {
 #define w32oop_ui_foundation_add_mover(c, base) c& operator=(c&& other) noexcept {base::operator=(std::move(other));return *this;};
 
-class BaseSystemWindow : public Window {
+namespace foundation {
+	// abstract base control class
+	// DO NOT super this class when setup_event_handlers!
+	class ChildControlWindow : public Window {
+	public:
+		ChildControlWindow(HWND parent, const std::wstring& title, int width, int height, int x = 0, int y = 0, LONG style = WS_OVERLAPPED, LONG styleEx = 0, unsigned long long ctlid_p = 0)
+			: ctlid(ctlid_p), Window(title, width, height, x, y, style, styleEx, HMENU(ctlid_p)), parent_window(parent) {
+		}
+		ChildControlWindow& operator=(ChildControlWindow&& other) noexcept {
+			Window::operator=(std::move(other));
+			this->parent_window = other.parent_window;
+			this->ctlid = other.ctlid;
+			other.parent_window = nullptr;
+			other.ctlid = 0;
+			return *this;
+		}
+		virtual void set_parent(HWND parent) {
+			this->parent_window = parent;
+		}
+		virtual void set_parent(Window* pParent) {
+			if (pParent) this->parent_window = *pParent;
+			else this->parent_window = nullptr;
+		}
+	protected:
+		unsigned long long ctlid;
+		HWND parent_window;
+		HWND new_window() override;
+	};
+}
+
+class BaseSystemWindow : public foundation::ChildControlWindow {
 public:
 	BaseSystemWindow(HWND parent, const std::wstring& title, int width, int height, int x = 0, int y = 0, LONG style = WS_OVERLAPPED, LONG styleEx = 0, unsigned long long ctlid_p = 0)
-		: ctlid(ctlid_p != 0 ? ctlid_p : ++ctlid_generator), Window(title, width, height, x, y, style, styleEx, HMENU(ctlid_p != 0 ? ctlid_p : static_cast<decltype(ctlid_p)>(ctlid_generator)))
-	{
-		this->parent_window = parent;
+		: ChildControlWindow(parent, title, width, height, x, y, style, styleEx, (ctlid_p != 0 ? ctlid_p : ++ctlid_generator)) {
 	}
 	BaseSystemWindow& operator=(BaseSystemWindow&& other) noexcept {
-		Window::operator=(std::move(other));
-		this->parent_window = other.parent_window;
-		this->ctlid = other.ctlid;
+		ChildControlWindow::operator=(std::move(other));
 		this->old_wndproc = other.old_wndproc;
-		other.parent_window = nullptr;
-		other.ctlid = 0;
 		other.old_wndproc = nullptr;
 		return *this;
-	};;
-	virtual void set_parent(HWND parent) {
-		this->parent_window = parent;
-	}
-	virtual void set_parent(Window* pParent) {
-		if (pParent) this->parent_window = *pParent;
-		else this->parent_window = nullptr;
 	}
 protected:
 	static std::atomic<unsigned long long> ctlid_generator;
-	unsigned long long ctlid;
-	HWND parent_window;
 	bool class_registered() const override;
-	HWND new_window() override;
 	WNDPROC old_wndproc = NULL;
 	virtual void setup_event_handlers() override {
 		// 此为顶层控件类，不需要继续super
@@ -69,6 +83,15 @@ public:
 		removeEventListener((::w32oop::ui::WINDOW_NOTIFICATION_CODES)+(event));
 		return *this;
 	}
+	virtual void addHandler(msg_t msg, CEventHandler handler) final {
+		addEventListener(msg, handler);
+	}
+	virtual void removeHandler(msg_t msg, CEventHandler handler) final {
+		removeEventListener(msg, handler);
+	}
+	virtual void removeHandler(msg_t msg) final {
+		removeEventListener(msg);
+	}
 };
 
 
@@ -76,6 +99,7 @@ public:
 namespace foundation {
 
 
+// Basic Static class. Directly uses system Static class, no extra windows.
 class Static : public BaseSystemWindow {
 public:
 	static const LONG STYLE = WS_CHILD | WS_VISIBLE;
@@ -93,6 +117,33 @@ protected:
 	virtual void setup_event_handlers() override {
 		WINDOW_EVENT_HANDLER_SUPER(BaseSystemWindow);
 	}
+};
+
+// Extended static control, with supports like customize colors. A thin wrapper is applied.
+class StaticEx : public ChildControlWindow {
+public:
+	static const LONG STYLE = WS_CHILD | WS_VISIBLE;
+	StaticEx(HWND parent, const std::wstring& text, int width, int height, int x = 0, int y = 0, LONG style = STYLE)
+		: ChildControlWindow(parent, text, width, height, x, y, style), _Style(style) {
+	}
+	StaticEx() : ChildControlWindow(0, L"", 0, 0, 1, 1, STYLE), _Style(STYLE) {}
+	w32oop_ui_foundation_add_mover(StaticEx, ChildControlWindow);
+	~StaticEx() override {}
+protected:
+	LONG _Style;
+	Static _MyStatic;
+	w32BrushHandle bgBrush = CreateSolidBrush(RGB(0xf0, 0xf0, 0xf0));
+	COLORREF frontColor = RGB(0, 0, 0);
+	COLORREF bgColor = RGB(0xf0, 0xf0, 0xf0);
+	void onSize(EventData& ev);
+	void onSetText(EventData& ev);
+	void onCtlColor(EventData& ev);
+	virtual void setup_event_handlers() override;
+public:
+	constexpr COLORREF color() const { return frontColor; }
+	constexpr COLORREF backgroundColor() const { return bgColor; }
+	void color(COLORREF c) { frontColor = c; if (is_alive()) update(); }
+	void backgroundColor(COLORREF c) { bgColor = c; bgBrush = CreateSolidBrush(c); if (is_alive()) update(); }
 };
 
 class Edit : public BaseSystemWindow {

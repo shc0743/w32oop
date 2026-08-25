@@ -11,7 +11,7 @@ bool w32oop::ui::BaseSystemWindow::class_registered() const {
 }
 
 
-HWND w32oop::ui::BaseSystemWindow::new_window() {
+HWND w32oop::ui::foundation::ChildControlWindow::new_window() {
 	auto cls = get_class_name();
 	HWND w = CreateWindowExW(
 		setup_info->styleEx,
@@ -21,16 +21,43 @@ HWND w32oop::ui::BaseSystemWindow::new_window() {
 		scaled(setup_info->x), scaled(setup_info->y),
 		scaled(setup_info->width), scaled(setup_info->height),
 		parent_window, // 必须提供，否则会失败（逆天Windows控件库。。。）并且不可以变化，否则丢消息。。。
-		(HMENU)(LONG_PTR)(ctlid), GetModuleHandle(NULL), nullptr
+		(HMENU)(LONG_PTR)(ctlid), GetModuleHandle(NULL), this
 	);
 	if (!w) return NULL;
-	SetWindowLongPtr(w, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+	SetWindowLongPtrW(w, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 	return w;
 }
 
 LRESULT w32oop::ui::BaseSystemWindow::default_handler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	if (!old_wndproc) return Window::default_handler(hwnd, message, wParam, lParam);
 	return CallWindowProcW(old_wndproc, hwnd, message, wParam, lParam);
+}
+
+void w32oop::ui::foundation::StaticEx::onSize(EventData& ev) {
+	RECT rc{}; GetClientRect(hwnd, &rc);
+	_MyStatic.resize(0, 0, rc.right - rc.left, rc.bottom - rc.top);
+}
+
+void w32oop::ui::foundation::StaticEx::onSetText(EventData& ev) {
+	// only forward message, no prevent
+	_MyStatic.send((UINT)ev.message, ev.wParam, ev.lParam);
+}
+
+void w32oop::ui::foundation::StaticEx::onCtlColor(EventData& ev) {
+	HDC hdcStatic = (HDC)ev.wParam;
+	SetTextColor(hdcStatic, frontColor);
+	SetBkColor(hdcStatic, bgColor);
+	ev.returnValue((INT_PTR)bgBrush.get());
+}
+
+void w32oop::ui::foundation::StaticEx::setup_event_handlers() {
+	RECT rc{}; GetClientRect(hwnd, &rc);
+	_MyStatic = Static(hwnd, text(), rc.right - rc.left, rc.bottom - rc.top, 0, 0, GetWindowLongW(hwnd, GWL_STYLE));
+	_MyStatic.create();
+	WINDOW_add_handler(WM_SIZING, onSize);
+	WINDOW_add_handler(WM_SIZE, onSize);
+	WINDOW_add_handler(WM_SETTEXT, onSetText);
+	WINDOW_add_handler(WM_CTLCOLORSTATIC, onCtlColor);
 }
 
 wstring w32oop::ui::foundation::StatusBar::get_text(int part) const {
@@ -251,4 +278,3 @@ void w32oop::ui::foundation::InputDialog::setMultiple(bool multiple) {
 	editBox.create();
 	post(WM_SIZE); // 更新布局
 }
-

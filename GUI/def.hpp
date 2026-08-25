@@ -48,13 +48,15 @@ namespace w32oop::exceptions {
     w32oop_declare_exception_class_from(window_parent_not_managed, window_exception);
     w32oop_declare_exception_class_from(window_dangerous_thread_operation, window_exception);
     w32oop_declare_exception_class_from(window_hotkey_duplication, window_exception);
+    w32oop_declare_exception_class_from(gdi, ui_exception);
+    w32oop_declare_exception_class_from(invalid_brush, gdi_exception);
 }
 
 #include <CommCtrl.h>
 
 namespace w32oop::ui {
-    constexpr ULONGLONG WINDOW_NOTIFICATION_CODES = WM_USER + 0x1000FFFFFFFFULL;
-    constexpr ULONGLONG WM_MENU_CHECKED = WM_USER + WM_MENUCOMMAND + 0x2000FFFFFFFFULL;
+    constexpr ULONGLONG WINDOW_NOTIFICATION_CODES = 0x0000800100000000ULL;
+    constexpr ULONGLONG WM_MENU_CHECKED = 0x0000100100000000ULL;
 
 #ifdef ICC_ALL_CLASSES
 #undef ICC_ALL_CLASSES
@@ -77,4 +79,6 @@ namespace w32oop::ui {
         ICC_NATIVEFNTCTL_CLASS |
         ICC_STANDARD_CLASSES |
         ICC_LINK_CLASS;
+
+    using w32BrushHandle = w32BaseHandle<HBRUSH, false, DeleteObject, exceptions::invalid_brush_exception>;
 }

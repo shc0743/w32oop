@@ -360,10 +360,17 @@ public:
 		return static_cast<int>(n * _dpi_scale_factor + (n >= 0 ? 0.5f : -0.5f));
 	}
 	// scaled 的逆运算：物理坐标 → 逻辑坐标（除以DPI缩放系数）。
-	// 遮蔽的 GetClientRect/GetWindowRect 内部用它把物理像素换算回逻辑像素。
 	inline int unscaled(int n) const {
 		if (!is_framework_dpi_virtualization_allowed()) return n;
 		return static_cast<int>(n / _dpi_scale_factor + (n >= 0 ? 0.5f : -0.5f));
+	}
+	// 转换逻辑坐标 → 物理坐标。
+	inline POINT scale_point(const POINT& pt) {
+		return POINT{ .x = scaled((int)pt.x), .y = scaled((int)pt.y), };
+	}
+	// 转换物理坐标 → 逻辑坐标。
+	inline POINT unscale_point(const POINT& pt) {
+		return POINT{ .x = unscaled((int)pt.x), .y = unscaled((int)pt.y), };
 	}
 
 	inline void move_to(int x, int y) {

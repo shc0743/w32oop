@@ -168,8 +168,7 @@ namespace w32oop::system {
 					return *p;
 				}
 			}
-			catch (...) {
-			}
+			catch (...) {}
 			return fallback;
 		}
 		// 设置特定键的值

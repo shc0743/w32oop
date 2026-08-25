@@ -10,12 +10,15 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #endif
 
 #include "./def.hpp"
+#include "./Window.hpp"
 #include <set>
+#include <optional>
 
 
 namespace w32oop::exceptions {
 	w32oop_declare_exception_class_from(invalid_menu_handle, ui_exception);
 	w32oop_declare_exception_class_from(invalid_menu_state, ui_exception);
+	w32oop_declare_exception_class_from(multiple_default_menu_item, ui_exception);
 }
 
 
@@ -54,13 +57,13 @@ namespace w32oop::def {
 
 
 namespace w32oop::ui {
-	class Window;
 	class MenuItem : public w32MenuObject {
 	protected:
 		UINT m_type;
 		UINT m_id; // 注：这里的 ID 字段仅仅要求唯一就行了，只起识别作用，不需要手动处理
 		wstring m_text;
 		bool is_checked = false;
+		bool is_default_ = false;
 		HICON hIcon = NULL;
 		vector<MenuItem> children;
 
@@ -96,6 +99,9 @@ namespace w32oop::ui {
 		const UINT& type() const {
 			return m_type;
 		}
+		void type(UINT type) {
+			m_type = type;
+		}
 		const wstring& text() const {
 			return m_text; // 返回菜单项文本
 		}
@@ -116,6 +122,23 @@ namespace w32oop::ui {
 		}
 		inline void uncheck() {
 			check(false); // 取消选中
+		}
+		constexpr bool enabled() const {
+			return !(m_type & (MF_DISABLED | MF_GRAYED));
+		}
+		inline void enable(bool fEnable = true) {
+			decltype(m_type) f = (MF_DISABLED | MF_GRAYED);
+			if (fEnable) m_type &= ~f;
+			else m_type |= f;
+		}
+		inline void disable() {
+			enable(false);
+		}
+		constexpr bool is_default() const {
+			return is_default_;
+		}
+		void set_default(bool value = true) {
+			is_default_ = value;
 		}
 
 	protected:
@@ -138,6 +161,12 @@ namespace w32oop::ui {
 		}
 		inline bool is_container() const {
 			return (m_type & MF_POPUP) != 0; // 判断是否为容器菜单项
+		}
+		inline bool is_separator() const {
+			return m_type & MF_SEPARATOR;
+		}
+		inline bool is_string() const {
+			return !is_container() && !is_separator();
 		}
 		MenuItem& append(MenuItem item) {
 			if (!is_container()) {
@@ -189,6 +218,9 @@ namespace w32oop::ui {
 #endif
 
 	public:
+		void set_default(size_t index) {
+			for (size_t i = 0; i < children.size(); ++i) children.at(i).set_default(i == index);
+		}
 		// 核心实现，动态构造菜单
 		w32MenuHandleEx build(HMENU(WINAPI* builder)(VOID) = CreatePopupMenu) const;
 		// 弹出菜单（显示菜单）。
@@ -199,6 +231,12 @@ namespace w32oop::ui {
 			GetCursorPos(&pt); // 获取鼠标位置
 			return pop(pt); // 弹出菜单
 		}
+		// 在鼠标所在位置弹出菜单（显示菜单）。
+		inline int pop(Window* owner) {
+			POINT pt{};
+			GetCursorPos(&pt); // 获取鼠标位置
+			return pop(owner->unscale_point(pt), owner); // 弹出菜单
+		}
 		// 在指定位置弹出菜单（显示菜单）。
 		inline int pop(const POINT& pt, Window* owner = nullptr) {
 			return pop(pt.x, pt.y, true, owner); // 弹出菜单
@@ -207,7 +245,7 @@ namespace w32oop::ui {
 		bool run(int nId);
 	private:
 		bool _run_handler_for_item(const MenuItem& item, int nId);
-		static void _build_itermenu(HMENU hMenu, const MenuItem& item, w32MenuHandleEx& owner);
+		static bool _build_itermenu(HMENU hMenu, const MenuItem& item, w32MenuHandleEx& owner);
 		static void _build_menutree(HMENU hMenu, const MenuItem& item, w32MenuHandleEx& owner);
 
 	public:
