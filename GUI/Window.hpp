@@ -257,20 +257,8 @@ public:
 	Window(const Window&) = delete;
 	Window& operator=(const Window&) = delete;
 
-	Window(Window&& other) noexcept :
-		hwnd(other.hwnd), setup_info(other.setup_info),
-		_disable_framework_dpi_virtualization_for_this_window(other._disable_framework_dpi_virtualization_for_this_window),
-		_dpi_scale_factor(other._dpi_scale_factor)
-	{
-		other.hwnd = nullptr;
-		other.setup_info = nullptr;
-		if (hwnd) {
-			SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-			lock_guard gg(managed_lock);
-			managed[hwnd] = this;
-		}
-	}
-	DECLSPEC_NOINLINE Window& operator=(Window&& other) noexcept;
+	Window(Window&& other) noexcept;
+	Window& operator=(Window&& other) noexcept;
 
 	virtual operator HWND() const final {
 		return hwnd;
@@ -355,23 +343,27 @@ public:
 	// 计算经框架DPI虚拟化后的数值（尺寸/坐标/字体大小等）。
 	// 当全局选项 Option_DisableFrameworkDpiVirtualization 或当前窗口
 	// 关闭了框架DPI虚拟化时，原样返回；否则返回 n × 当前DPI缩放系数。
-	inline int scaled(int n) const {
+	[[nodiscard]] virtual int scaled(int n) const {
 		if (!is_framework_dpi_virtualization_allowed()) return n;
 		return static_cast<int>(n * _dpi_scale_factor + (n >= 0 ? 0.5f : -0.5f));
 	}
 	// scaled 的逆运算：物理坐标 → 逻辑坐标（除以DPI缩放系数）。
-	inline int unscaled(int n) const {
+	[[nodiscard]] virtual int unscaled(int n) const {
 		if (!is_framework_dpi_virtualization_allowed()) return n;
 		return static_cast<int>(n / _dpi_scale_factor + (n >= 0 ? 0.5f : -0.5f));
 	}
 	// 转换逻辑坐标 → 物理坐标。
-	inline POINT scale_point(const POINT& pt) {
+	[[nodiscard]] virtual POINT scale_point(const POINT& pt) {
 		return POINT{ .x = scaled((int)pt.x), .y = scaled((int)pt.y), };
 	}
 	// 转换物理坐标 → 逻辑坐标。
-	inline POINT unscale_point(const POINT& pt) {
+	[[nodiscard]] virtual POINT unscale_point(const POINT& pt) {
 		return POINT{ .x = unscaled((int)pt.x), .y = unscaled((int)pt.y), };
 	}
+	[[nodiscard]] virtual RECT scale_rect(const RECT& rc);
+	virtual RECT* scale_rect(RECT* lpRect);
+	[[nodiscard]] virtual RECT unscale_rect(const RECT& rc);
+	virtual RECT* unscale_rect(RECT* lpRect);
 
 	inline void move_to(int x, int y) {
 		validate_hwnd();
@@ -392,7 +384,10 @@ public:
 		resize(rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top);
 	}
 
-	void center(HWND parent = NULL);
+	virtual RECT rect();
+	virtual RECT client_rect();
+
+	virtual void center(HWND parent = NULL) final;
 	static void center(HWND, HWND parent);
 
 	inline void set_topmost(bool isTopmost) {
@@ -585,28 +580,26 @@ protected:
 	virtual void remove_all_hot_key_on_window() final;
 	virtual void remove_all_hot_key_global() final;
 
-public:
-	// shim
-	BOOL GetClientRect(HWND hWnd, LPRECT lpRect) const;
-	BOOL GetWindowRect(HWND hWnd, LPRECT lpRect) const;
-
 };
 
 #pragma region macros to simplify the event handling
-// DEPRECATED!! This macro makes code confusing and causes VCR001 Warning.
-// Please directly *override* the setup_event_handlers
-// virtual void setup_event_handlers() override
-#define WINDOW_EVENT_HANDLER_DECLARE_BEGIN() virtual void setup_event_handlers() override {
-// DEPRECATED!! This macro makes code confusing.
-// Please directly }
-#define WINDOW_EVENT_HANDLER_DECLARE_END() }
-
 // Not necessary to super IF you DIRECTLY inherits the Window
 // If your parent class DO SOMETHING in the setup_event_handlers, you will need to super
 #define WINDOW_EVENT_HANDLER_SUPER(base_class) base_class::setup_event_handlers();
 
 #define WINDOW_add_handler(msg,handler) addEventListener(msg, [this](EventData& data) { if (data.hwnd != this->hwnd) return;handler(data); });
 #define WINDOW_add_notification_handler(msg,handler) addEventListener((::w32oop::ui::WINDOW_NOTIFICATION_CODES) + (msg), [this](EventData& data) { if (data.hwnd != this->hwnd || (!data.is_notification())) return;handler(data); });
+
+
+//deprecated:#define w32oop_ui_window_copypaste_move_constructor(className, otherName, yourBody) className(className&& otherName) noexcept {yourBody} className& operator=(className&& otherName) noexcept {yourBody return *this;}
+#define w32oop_ui_window_move_super(ParentClass, otherName) ParentClass::operator=(std::move(otherName))
+#define w32oop_ui_window_move_object(memberName, otherName) this->memberName = std::move(otherName.memberName)
+#define w32oop_ui_window_move_ctor_super(ParentClass, otherName) ParentClass(std::move(otherName))
+#define w32oop_ui_window_move_ctor_object(memberName, otherName) memberName(std::move(otherName.memberName))
+#define w32oop_ui_window_move_value(memberName, otherName) { this->memberName = otherName.memberName; otherName.memberName = decltype(otherName.memberName){}; }
+#define w32oop_ui_window_move_assignment_end() return *this
+#define w32oop_ui_window_move_assignment_start(otherName) if (this == &otherName) w32oop_ui_window_move_assignment_end()
+
 #pragma endregion
 
 package internal declare;

@@ -244,7 +244,7 @@ namespace MyDemo {
 
     private:
         void onSizeChange(EventData &e) {
-            RECT rc{}; GetClientRect(hwnd, &rc);
+            RECT rc = client_rect();
             int btnHeight = 30, btnWidth = 80, btnMargin = 10;
             int lblHeight = 30, lblWidth = 300;
             int editorMarginTop = 50;

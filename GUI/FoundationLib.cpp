@@ -34,7 +34,7 @@ LRESULT w32oop::ui::BaseSystemWindow::default_handler(HWND hwnd, UINT message, W
 }
 
 void w32oop::ui::foundation::StaticEx::onSize(EventData& ev) {
-	RECT rc{}; GetClientRect(hwnd, &rc);
+	RECT rc = client_rect();
 	_MyStatic.resize(0, 0, rc.right - rc.left, rc.bottom - rc.top);
 }
 
@@ -74,7 +74,7 @@ void w32oop::ui::foundation::InputDialog::onCreated() {
 	float actualScale = (float)actualDpi / 96.0f;
 	if (actualScale != m_scale) {
 		m_scale = actualScale;
-		RECT rc{}; ::GetWindowRect(hwnd, &rc);
+		RECT rc{}; GetWindowRect(hwnd, &rc);
 		SetWindowPos(hwnd, nullptr, rc.left, rc.top,
 			(int)(_logical_width * actualScale + 0.5f),
 			(int)(_logical_height * actualScale + 0.5f),

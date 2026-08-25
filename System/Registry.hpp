@@ -18,6 +18,7 @@ namespace w32oop::exceptions {
 	w32oop_declare_exception_class_from(registry, system_exception);
 	w32oop_declare_exception_class_from(invalid_registry_handle, registry_exception);
 	w32oop_declare_exception_class_from(registry_value_type_not_supported, registry_exception);
+	w32oop_declare_exception_class_from(registry_value_type_cast_failed, registry_exception);
 	w32oop_declare_exception_class_from(registry_query_failed, registry_exception);
 	w32oop_declare_exception_class_from(registry_write_failed, registry_exception);
 	w32oop_declare_exception_class_from(registry_key_exists, registry_exception);
@@ -60,13 +61,13 @@ namespace w32oop::system {
 		template<typename value_type>
 		value_type get(ULONG type = 0) const {
 			if (type != 0 && m_type != type) {
-				throw exceptions::invalid_registry_handle_exception("Invalid registry value type.");
+				throw exceptions::registry_value_type_not_supported_exception("Invalid registry value type.");
 			}
 			try {
 				return std::any_cast<value_type>(m_value);
 			}
 			catch (const std::bad_any_cast&) {
-				throw exceptions::invalid_registry_handle_exception("Invalid type cast for registry value.");
+				throw exceptions::registry_value_type_cast_failed_exception("Invalid type cast for registry value.");
 			}
 		}
 		inline const auto get_raw() const {

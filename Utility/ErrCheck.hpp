@@ -17,9 +17,10 @@ namespace w32oop::util {
 	protected:
 		DWORD code;
 		wstring msg;
+		HMODULE hExtraModule;
 
 	public:
-		ErrorChecker(DWORD code = GetLastError()) : code(code) {
+		ErrorChecker(DWORD code = GetLastError(), HMODULE hExtraModule = NULL) : code(code), hExtraModule(hExtraModule) {
 			format();
 		}
 		ErrorChecker& operator=(const ErrorChecker& other) {
@@ -39,6 +40,9 @@ namespace w32oop::util {
 		}
 		void format() {
 			PWSTR LocalAddress = NULL;
+			if (hExtraModule) if (FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+				FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_HMODULE, hExtraModule,
+				code, 0, (PWSTR)&LocalAddress, 0, NULL)) goto ok;
 			if (!FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER |
 				FORMAT_MESSAGE_IGNORE_INSERTS |
 				FORMAT_MESSAGE_FROM_SYSTEM, NULL,
@@ -51,6 +55,7 @@ namespace w32oop::util {
 				SetLastError(code);
 				return;
 			}
+			ok:
 			msg = LocalAddress;
 			LocalFree((HLOCAL)LocalAddress);
 			SetLastError(code);

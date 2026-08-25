@@ -240,48 +240,68 @@ Window::Window(const std::wstring& title, int width, int height, int x, int y, L
 	setup_info->style = style;
 	setup_info->styleEx = styleEx;
 	setup_info->hMenu = hMenu;
+	_dpi_scale_factor = (float)w32oop::ui::internal::system_dpi_scale_factor();
 }
 
 Window::Window() {
 	setup_info = nullptr;
+	_dpi_scale_factor = (float)w32oop::ui::internal::system_dpi_scale_factor();
 }
 
-DECLSPEC_NOINLINE Window& Window::operator=(Window&& other) noexcept {
-	// 检查自赋值
-	if (this != &other) {
-		if (hwnd) {
-			destroy();
-		}
+#define WINDOW_PROCESS_OBJECT_MEMBERS(use) \
+use(class_name, other), \
+use(__message_router, other), \
+use(__invokeLaterList, other)
 
-		if (setup_info) delete setup_info;
+#define WINDOW_PROCESS_VALUE_MEMBERS() \
+w32oop_ui_window_move_value(hwnd, other); \
+w32oop_ui_window_move_value(_owner, other); \
+w32oop_ui_window_move_value(setup_info, other); \
+w32oop_ui_window_move_value(_created, other); \
+w32oop_ui_window_move_value(is_main_window, other); \
+w32oop_ui_window_move_value(_is_compositioning, other); \
+w32oop_ui_window_move_value(_disable_framework_dpi_virtualization_for_this_window, other); \
+w32oop_ui_window_move_value(_dpi_scale_factor, other); \
+w32oop_ui_window_move_value(user, other); \
 
-		// 转移所有权
-		hwnd = other.hwnd;
-		_created = other._created;
-		setup_info = other.setup_info;
-		_disable_framework_dpi_virtualization_for_this_window = other._disable_framework_dpi_virtualization_for_this_window;
-		_dpi_scale_factor = other._dpi_scale_factor;
-
-		// 重置源对象
-		other.hwnd = nullptr;
-		other._created = false;
-		other.setup_info = nullptr;
-
-		// 更新窗口的用户数据指针
-		if (hwnd) {
-			lock_guard gg(managed_lock);
-			managed[hwnd] = this;
-			SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-		}
+Window::Window(Window&& other) noexcept : w32Window(),
+WINDOW_PROCESS_OBJECT_MEMBERS(w32oop_ui_window_move_ctor_object)
+{
+	WINDOW_PROCESS_VALUE_MEMBERS();
+	if (hwnd) {
+		lock_guard gg(managed_lock);
+		managed[hwnd] = this;
+		SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 	}
-	return *this;
 }
+Window& Window::operator=(Window&& other) noexcept {
+	w32oop_ui_window_move_assignment_start(other);
+
+	if (setup_info) delete setup_info;
+	if (hwnd) {
+		destroy();
+	}
+
+	WINDOW_PROCESS_OBJECT_MEMBERS(w32oop_ui_window_move_object);
+	WINDOW_PROCESS_VALUE_MEMBERS();
+
+	// 更新窗口的用户数据指针
+	if (hwnd) {
+		lock_guard gg(managed_lock);
+		managed[hwnd] = this;
+		SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+	}
+
+	w32oop_ui_window_move_assignment_end();
+}
+
+#undef WINDOW_PROCESS_OBJECT_MEMBERS
+#undef WINDOW_PROCESS_VALUE_MEMBERS
 
 void Window::create() {
 	if (_created) throw window_already_initialized_exception();
 	if (!setup_info) throw window_illegal_state_exception();
 	transfer_ownership();
-	_dpi_scale_factor = (float)w32oop::ui::internal::system_dpi_scale_factor();
 	class_name = get_class_name();
 	register_class_if_needed();
 	if (get_global_option(Option_DebugMode)) {
@@ -377,18 +397,53 @@ bool Window::force_focus(DWORD timeout) {
 	return focus();
 }
 
+RECT* Window::scale_rect(RECT* lpRect) {
+	lpRect->left = scaled(lpRect->left);
+	lpRect->top = scaled(lpRect->top);
+	lpRect->right = scaled(lpRect->right);
+	lpRect->bottom = scaled(lpRect->bottom);
+	return lpRect;
+}
+
+RECT* Window::unscale_rect(RECT* lpRect) {
+	lpRect->left = unscaled(lpRect->left);
+	lpRect->top = unscaled(lpRect->top);
+	lpRect->right = unscaled(lpRect->right);
+	lpRect->bottom = unscaled(lpRect->bottom);
+	return lpRect;
+}
+
+RECT Window::scale_rect(const RECT& rc) {
+	RECT r = rc;
+	return *scale_rect(&r);
+}
+
+RECT Window::unscale_rect(const RECT& rc) {
+	RECT r = rc;
+	return *unscale_rect(&r);
+}
+
+RECT Window::rect() {
+	RECT rc{}; GetWindowRect(hwnd, &rc);
+	return unscale_rect(rc);
+}
+
+RECT Window::client_rect() {
+	RECT rc{}; GetClientRect(hwnd, &rc);
+	return unscale_rect(rc);
+}
+
 void Window::center(HWND parent) {
 	if (!parent) parent = GetParent(hwnd);
 	center(hwnd, parent);
 }
 void Window::center(HWND hwnd, HWND parent) {
-	// center 是纯物理像素运算（窗口rect与屏幕尺寸都是物理值），显式调用全局API
 	RECT rcParent{};
-	if (parent) ::GetWindowRect(parent, &rcParent);
+	if (parent) GetWindowRect(parent, &rcParent);
 
 	// 取得窗口尺寸
 	RECT rect;
-	::GetWindowRect(hwnd, &rect);
+	GetWindowRect(hwnd, &rect);
 	// 获得窗口大小
 	auto w = rect.right - rect.left, h = rect.bottom - rect.top;
 	// 重新设置rect里的值
@@ -716,8 +771,8 @@ void Window::dispatchEventForWindow(EventData& data) {
 				throw;
 			}
 		}
-		if (data.message > WINDOW_NOTIFICATION_CODES) {
-			data.preventDefault(); // 这不是我们的消息，我们不应该处理
+		if (data.message > 0xFFFFFFFF) {
+			data.preventDefault(); // 这不是 Microsoft Windows 的消息，不应该给默认处理器处理
 		}
 	}
 	catch (out_of_range&) {
@@ -1078,26 +1133,5 @@ void Window::remove_all_hot_key_global() {
 	hotkey_handlers.clear();
 }
 
-// DPI 相关的 stub
-
-BOOL Window::GetClientRect(HWND hWnd, LPRECT lpRect) const {
-	BOOL result = ::GetClientRect(hWnd, lpRect);
-	if (!is_framework_window(hWnd)) return result;
-	lpRect->left = unscaled(lpRect->left);
-	lpRect->top = unscaled(lpRect->top);
-	lpRect->right = unscaled(lpRect->right);
-	lpRect->bottom = unscaled(lpRect->bottom);
-	return result;
-}
-
-BOOL Window::GetWindowRect(HWND hWnd, LPRECT lpRect) const {
-	BOOL result = ::GetWindowRect(hWnd, lpRect);
-	if (!is_framework_window(hWnd)) return result;
-	lpRect->left = unscaled(lpRect->left);
-	lpRect->top = unscaled(lpRect->top);
-	lpRect->right = unscaled(lpRect->right);
-	lpRect->bottom = unscaled(lpRect->bottom);
-	return result;
-}
 
 

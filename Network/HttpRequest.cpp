@@ -1,5 +1,6 @@
 ﻿#include "HttpRequest.hpp"
 #include "../Utility/StringUtil/operations.hpp"
+#include "../Utility/RAII.hpp"
 using namespace w32oop;
 using namespace w32oop::network;
 
@@ -27,17 +28,31 @@ void w32oop::network::CrackUrl(const std::wstring& url, std::wstring& host, std:
 }
 
 HttpResponse w32oop::network::fetch(HttpRequest request) {
+	DWORD error = 1;
+	util::RAIIHelper ErrorCodePreserver([&error] { SetLastError(error); });
 	std::wstring host, path;
 	INTERNET_PORT port;
 	bool secure;
-	CrackUrl(request.url(), host, path, port, secure);
+	try {
+		CrackUrl(request.url(), host, path, port, secure);
+	}
+	catch (...) {
+		error = GetLastError();
+		throw;
+	}
 
 	// -- 初始化连接
 	w32InternetHandle hSession = WinHttpOpen(request.userAgent().c_str(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, nullptr, nullptr, 0);
+	error = GetLastError();
+	hSession.validate();
 	w32InternetHandle hConnection = WinHttpConnect(hSession, host.c_str(), port, 0);
+	error = GetLastError();
+	hConnection.validate();
 	w32InternetHandle hRequest = WinHttpOpenRequest(hConnection, request.method().c_str(), path.c_str(), nullptr,
 		request.referrer().empty() ? WINHTTP_NO_REFERER : request.referrer().c_str(),
 		WINHTTP_DEFAULT_ACCEPT_TYPES, secure ? WINHTTP_FLAG_SECURE : 0);
+	error = GetLastError();
+	hRequest.validate();
 
 	// -- 设置 headers
 	for (const auto& [name, value] : request.headers()) {
@@ -49,11 +64,13 @@ HttpResponse w32oop::network::fetch(HttpRequest request) {
 	LPVOID requestBody = NULL;
 	DWORD requestBodyLength = 0;
 	if (request.body()) {
+		error = ERROR_UNKNOWN_PROPERTY;
 		if (dynamic_cast<HttpMemoryBody*>(request.body().get())) {
 			requestBody = dynamic_cast<HttpMemoryBody*>(request.body().get())->data().data();
 			requestBodyLength = static_cast<DWORD>(dynamic_cast<HttpMemoryBody*>(request.body().get())->data().size());
 		}
 		else if (dynamic_cast<HttpFileBody*>(request.body().get())) {
+			error = ERROR_NOT_SUPPORTED;
 			// TODO: 创建文件的内存映射…
 			throw exceptions::network_request_not_supported_exception("HttpFileBody not supported yet.");
 		}
@@ -63,10 +80,12 @@ HttpResponse w32oop::network::fetch(HttpRequest request) {
 	// -- 发送网络请求
 	BOOL result = WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
 		requestBody, requestBodyLength, requestBodyLength, 0);
+	error = GetLastError();
 	if (!result) throw exceptions::network_request_failed_exception("WinHttpSendRequest failed.");
 
 	// -- 接收响应
 	if (!WinHttpReceiveResponse(hRequest.get(), nullptr)) {
+		error = GetLastError();
 		throw exceptions::network_request_failed_exception("Failed to receive response");
 	}
 
@@ -99,6 +118,7 @@ HttpResponse w32oop::network::fetch(HttpRequest request) {
 		&headerSize,
 		WINHTTP_NO_HEADER_INDEX
 	);
+	error = GetLastError();
 	if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
 		auto headerBuffer = std::make_unique<wchar_t[]>(headerSize / sizeof(wchar_t) + 1);
 		// 第二次调用 WinHttpQueryHeaders 获取实际的响应头数据
@@ -154,18 +174,23 @@ HttpResponse w32oop::network::fetch(HttpRequest request) {
 		if (isFileBuffer) {
 			DWORD written = 0;
 			if (!WriteFile(fileHandle, readBuffer.get(), readBytes, &written, nullptr)) {
+				error = GetLastError();
 				throw exceptions::network_io_exception("Unable to write file");
 			}
 			continue;
 		}
 		if (readTotal > maxRead) {
-			if (request.file_buffer_file_name().empty()) throw exceptions::network_io_exception("File buffer size exceeded and no disk file specified");
+			if (request.file_buffer_file_name().empty()) {
+				error = ERROR_INVALID_PARAMETER;
+				throw exceptions::network_io_exception("File buffer size exceeded and no disk file specified");
+			}
 			fileHandle = CreateFileW(request.file_buffer_file_name().c_str(), GENERIC_WRITE,
 				0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 			isFileBuffer = true;
 			// 转移到文件缓冲区
 			DWORD written = 0;
 			if (!WriteFile(fileHandle, memoryBuffer.data(), (DWORD)memoryBuffer.size(), &written, nullptr)) {
+				error = GetLastError();
 				throw exceptions::network_io_exception("Unable to write memory buffer to file");
 			}
 			memoryBuffer.clear();
@@ -180,6 +205,7 @@ HttpResponse w32oop::network::fetch(HttpRequest request) {
 	if (isFileBuffer) body = make_shared<HttpFileBody>(std::move(fileHandle));
 	else body = make_shared<HttpMemoryBody>(memoryBuffer);
 
+	error = GetLastError();
 	return HttpResponse(body, HttpResponseInitOptions{
 		.status = statusCode,
 		.statusText = statusText,

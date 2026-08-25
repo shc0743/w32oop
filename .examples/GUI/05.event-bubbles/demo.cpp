@@ -91,8 +91,7 @@ namespace MyDemo {
 			btnAddFile.set_parent(this);
 			btnAddFile.create(L"Add or Drag File", 100, BUTTON_HEIGHT, PADDING, PADDING);
 
-			RECT rc;
-			GetClientRect(hwnd, &rc);
+			RECT rc = client_rect();
 			updateLayout(rc.right - rc.left, rc.bottom - rc.top);
 		}
 
@@ -125,14 +124,12 @@ namespace MyDemo {
 				if (newPos != scrollPos) {
 					scrollPos = newPos;
 					::SetScrollPos(hwnd, SB_VERT, scrollPos, TRUE);
-					RECT rc;
-					GetClientRect(hwnd, &rc);
+					RECT rc = client_rect();
 					updateLayout(rc.right - rc.left, rc.bottom - rc.top);
 				}
 			}
 			else { // WM_SIZE or WM_SIZING
-				RECT rc;
-				GetClientRect(hwnd, &rc);
+				RECT rc = client_rect();
 				updateLayout(rc.right - rc.left, rc.bottom - rc.top);
 			}
 		}
@@ -149,8 +146,7 @@ namespace MyDemo {
 				fileButtons.push_back(std::move(newBtn));
 			}
 			DragFinish(hDrop);
-			RECT rc{};
-			GetClientRect(hwnd, &rc);
+			RECT rc = client_rect();
 			updateLayout(rc.right - rc.left, rc.bottom - rc.top);
 		}
 
@@ -162,8 +158,7 @@ namespace MyDemo {
 			if (newPos != scrollPos) {
 				scrollPos = newPos;
 				::SetScrollPos(hwnd, SB_VERT, scrollPos, TRUE);
-				RECT rc;
-				GetClientRect(hwnd, &rc);
+				RECT rc = client_rect();
 				updateLayout(rc.right - rc.left, rc.bottom - rc.top);
 			}
 		}
@@ -181,8 +176,7 @@ namespace MyDemo {
 					newBtn->create(path, 100, BUTTON_HEIGHT, PADDING, PADDING);
 					fileButtons.push_back(std::move(newBtn));
 
-					RECT rc;
-					GetClientRect(hwnd, &rc);
+					RECT rc = client_rect();
 					updateLayout(rc.right - rc.left, rc.bottom - rc.top);
 				}
 			}

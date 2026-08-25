@@ -21,7 +21,9 @@ private:
 	Button btn;
 	Edit file;
 	Edit textBox;
+	HMODULE winhttp;
 	void onCreated() override {
+		winhttp = LoadLibraryW(L"winhttp.dll");
 		btn = Button(*this, L"Click me to download", 360, 30, 10, 10);
 		btn.create();
 		btn.onClick([this] (EventData& event) {
@@ -42,7 +44,7 @@ private:
 						else textBox.text(L"OK: File is large. Saved to " + file.text());
 					}
 					catch (exception& e) {
-						textBox.text(L"Failed: " + ErrorChecker().message() + L"\n" + w32oop::util::str::converts::str_wstr(e.what()));
+						textBox.text(L"Failed: " + ErrorChecker(GetLastError(), winhttp).message() + L"\r\n" + w32oop::util::str::converts::str_wstr(e.what()));
 					}
 				}, value.value()).detach();
 				textBox.text(L"Download in progress...");
@@ -59,7 +61,7 @@ private:
 		textBox.create();
 	}
 	void doLayout(EventData& ev) {
-		RECT rc{}; GetClientRect(hwnd, &rc);
+		RECT rc = client_rect();
 		auto w = rc.right - rc.left, h = rc.bottom - rc.top;
 		// 调整控件大小
 		btn.resize(10, 10, w - 20, 30);

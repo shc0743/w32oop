@@ -13,14 +13,14 @@ using namespace std;
 
 class YourWindowClass : public Window {
 public:
-	YourWindowClass() : Window(L"Your Window Title", 400, 300, 0, 0, WS_OVERLAPPEDWINDOW) {}
+	YourWindowClass() : Window(L"Your Window Title", 500, 300, 0, 0, WS_OVERLAPPEDWINDOW) {}
 private:
 	StaticEx text;
 	Button btn;
-	Edit textBox;
+	Edit textBox, textBoxColorSetter;
 	void onCreated() override {
 		// lifecycle hooks
-		text = StaticEx(*this, L"...", 250, 30, 10, 90);
+		text = StaticEx(*this, L"...", 470, 60, 10, 90);
 		text.color(RgbColor("#abcdef"));
 		text.backgroundColor(RgbColor(0x123456));
 		text.create();
@@ -35,6 +35,18 @@ private:
 		textBox.create();
 		textBox.onChange([this] (EventData& event) {
 			text.text(L"Text area edited");
+		});
+
+		textBoxColorSetter = Edit(*this, L"#abcdef", 120, 30, 10, 160);
+		textBoxColorSetter.create();
+		textBoxColorSetter.onChange([this] (EventData& event) {
+			try {
+				text.color(ParseRgbColorRt(w32oop::util::str::encodings::utf16_utf8(textBoxColorSetter.text())));
+				text.text(L"Color updated!!");
+			}
+			catch (exception& e) {
+				text.text(w32oop::util::str::encodings::utf8_utf16(string(typeid(e).name()) + "\r\n" + e.what()));
+			}
 		});
 	}
 	void onDestroy() override {

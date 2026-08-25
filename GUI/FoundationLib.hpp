@@ -16,7 +16,14 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 
 namespace w32oop::ui {
-#define w32oop_ui_foundation_add_mover(c, base) c& operator=(c&& other) noexcept {base::operator=(std::move(other));return *this;};
+// can only use to quick find-replace; do NOT directly use as long as there are extra members
+#define w32oop_ui_foundation_quick_add_mover(c, base) \
+	c(c&& other) noexcept : w32oop_ui_window_move_ctor_super(base, other) {} \
+	c& operator=(c&& other) noexcept { \
+		w32oop_ui_window_move_assignment_start(other); \
+		w32oop_ui_window_move_super(base, other); \
+		w32oop_ui_window_move_assignment_end(); \
+	}
 
 namespace foundation {
 	// abstract base control class
@@ -26,13 +33,18 @@ namespace foundation {
 		ChildControlWindow(HWND parent, const std::wstring& title, int width, int height, int x = 0, int y = 0, LONG style = WS_OVERLAPPED, LONG styleEx = 0, unsigned long long ctlid_p = 0)
 			: ctlid(ctlid_p), Window(title, width, height, x, y, style, styleEx, HMENU(ctlid_p)), parent_window(parent) {
 		}
+		ChildControlWindow(ChildControlWindow&& other) noexcept :
+			w32oop_ui_window_move_ctor_super(Window, other)
+		{
+			w32oop_ui_window_move_value(parent_window, other);
+			w32oop_ui_window_move_value(ctlid, other);
+		}
 		ChildControlWindow& operator=(ChildControlWindow&& other) noexcept {
-			Window::operator=(std::move(other));
-			this->parent_window = other.parent_window;
-			this->ctlid = other.ctlid;
-			other.parent_window = nullptr;
-			other.ctlid = 0;
-			return *this;
+			w32oop_ui_window_move_assignment_start(other);
+			w32oop_ui_window_move_super(Window, other);
+			w32oop_ui_window_move_value(parent_window, other);
+			w32oop_ui_window_move_value(ctlid, other);
+			w32oop_ui_window_move_assignment_end();
 		}
 		virtual void set_parent(HWND parent) {
 			this->parent_window = parent;
@@ -53,11 +65,16 @@ public:
 	BaseSystemWindow(HWND parent, const std::wstring& title, int width, int height, int x = 0, int y = 0, LONG style = WS_OVERLAPPED, LONG styleEx = 0, unsigned long long ctlid_p = 0)
 		: ChildControlWindow(parent, title, width, height, x, y, style, styleEx, (ctlid_p != 0 ? ctlid_p : ++ctlid_generator)) {
 	}
+	BaseSystemWindow(BaseSystemWindow&& other) noexcept :
+		w32oop_ui_window_move_ctor_super(ChildControlWindow, other)
+	{
+		w32oop_ui_window_move_value(old_wndproc, other);
+	}
 	BaseSystemWindow& operator=(BaseSystemWindow&& other) noexcept {
-		ChildControlWindow::operator=(std::move(other));
-		this->old_wndproc = other.old_wndproc;
-		other.old_wndproc = nullptr;
-		return *this;
+		w32oop_ui_window_move_assignment_start(other);
+		w32oop_ui_window_move_super(ChildControlWindow, other);
+		w32oop_ui_window_move_value(old_wndproc, other);
+		w32oop_ui_window_move_assignment_end();
 	}
 protected:
 	static std::atomic<unsigned long long> ctlid_generator;
@@ -107,7 +124,12 @@ public:
 		: BaseSystemWindow(parent, text, width, height, x, y, style) {
 	}
 	Static() : BaseSystemWindow(0, L"", 0, 0, 1, 1, STYLE) {}
-	w32oop_ui_foundation_add_mover(Static, BaseSystemWindow);
+	Static(Static&& other) noexcept : w32oop_ui_window_move_ctor_super(BaseSystemWindow, other) {}
+	Static& operator=(Static&& other) noexcept {
+		w32oop_ui_window_move_assignment_start(other);
+		w32oop_ui_window_move_super(BaseSystemWindow, other);
+		w32oop_ui_window_move_assignment_end();
+	}
 	~Static() override {}
 protected:
 	const wstring get_class_name() const override {
@@ -124,13 +146,27 @@ class StaticEx : public ChildControlWindow {
 public:
 	static const LONG STYLE = WS_CHILD | WS_VISIBLE;
 	StaticEx(HWND parent, const std::wstring& text, int width, int height, int x = 0, int y = 0, LONG style = STYLE)
-		: ChildControlWindow(parent, text, width, height, x, y, style), _Style(style) {
+		: ChildControlWindow(parent, text, width, height, x, y, style) {
 	}
-	StaticEx() : ChildControlWindow(0, L"", 0, 0, 1, 1, STYLE), _Style(STYLE) {}
-	w32oop_ui_foundation_add_mover(StaticEx, ChildControlWindow);
+	StaticEx() : ChildControlWindow(0, L"", 0, 0, 1, 1, STYLE) {}
+	StaticEx(StaticEx&& other) noexcept : w32oop_ui_window_move_ctor_super(ChildControlWindow, other),
+		w32oop_ui_window_move_ctor_object(_MyStatic, other),
+		w32oop_ui_window_move_ctor_object(bgBrush, other)
+	{
+		w32oop_ui_window_move_value(frontColor, other);
+		w32oop_ui_window_move_value(bgColor, other);
+	}
+	StaticEx& operator=(StaticEx&& other) noexcept {
+		w32oop_ui_window_move_assignment_start(other);
+		w32oop_ui_window_move_super(ChildControlWindow, other);
+		w32oop_ui_window_move_object(_MyStatic, other);
+		w32oop_ui_window_move_object(bgBrush, other);
+		w32oop_ui_window_move_value(frontColor, other);
+		w32oop_ui_window_move_value(bgColor, other);
+		w32oop_ui_window_move_assignment_end();
+	}
 	~StaticEx() override {}
 protected:
-	LONG _Style;
 	Static _MyStatic;
 	w32BrushHandle bgBrush = CreateSolidBrush(RGB(0xf0, 0xf0, 0xf0));
 	COLORREF frontColor = RGB(0, 0, 0);
@@ -153,7 +189,18 @@ public:
 		: BaseSystemWindow(parent, text, width, height, x, y, style) {
 	}
 	Edit() : BaseSystemWindow(0, L"", 0, 0, 1, 1, STYLE) {}
-	w32oop_ui_foundation_add_mover(Edit, BaseSystemWindow);
+	Edit(Edit&& other) noexcept : w32oop_ui_window_move_ctor_super(BaseSystemWindow, other),
+		w32oop_ui_window_move_ctor_object(onChangeHandler, other)
+	{
+		w32oop_ui_window_move_value(is_readonly, other);
+	}
+	Edit& operator=(Edit&& other) noexcept {
+		w32oop_ui_window_move_assignment_start(other);
+		w32oop_ui_window_move_super(BaseSystemWindow, other);
+		w32oop_ui_window_move_object(onChangeHandler, other);
+		w32oop_ui_window_move_value(is_readonly, other);
+		w32oop_ui_window_move_assignment_end();
+	}
 	~Edit() override {}
 	void onChange(CEventHandler handler) {
 		onChangeHandler = handler;
@@ -226,7 +273,18 @@ public:
 	Button(HWND parent, const std::wstring& text, int width, int height, int x = 0, int y = 0, int ctlid = 0, LONG style = STYLE)
 		: BaseSystemWindow(parent, text, width, height, x, y, style, ctlid) {}
 	Button() : BaseSystemWindow(0, L"", 0, 0, 1, 1, STYLE) {}
-	w32oop_ui_foundation_add_mover(Button, BaseSystemWindow);
+	Button(Button&& other) noexcept : w32oop_ui_window_move_ctor_super(BaseSystemWindow, other),
+		w32oop_ui_window_move_ctor_object(onClickHandler, other)
+	{
+		w32oop_ui_window_move_value(cursor, other);
+	}
+	Button& operator=(Button&& other) noexcept {
+		w32oop_ui_window_move_assignment_start(other);
+		w32oop_ui_window_move_super(BaseSystemWindow, other);
+		w32oop_ui_window_move_object(onClickHandler, other);
+		w32oop_ui_window_move_value(cursor, other);
+		w32oop_ui_window_move_assignment_end();
+	}
 	~Button() override {}
 	void onClick(CEventHandler handler) {
 		onClickHandler = handler;
@@ -265,7 +323,15 @@ public:
 		: Button(parent, text, width, height, x, y, ctlid, style) {
 	}
 	CheckBox() : Button(0, L"", 0, 0, 1, 1, 0, STYLE) {}
-	w32oop_ui_foundation_add_mover(CheckBox, Button);
+	CheckBox(CheckBox&& other) noexcept : w32oop_ui_window_move_ctor_super(Button, other),
+		w32oop_ui_window_move_ctor_object(onChangeHandler, other)
+	{}
+	CheckBox& operator=(CheckBox&& other) noexcept {
+		w32oop_ui_window_move_assignment_start(other);
+		w32oop_ui_window_move_super(Button, other);
+		w32oop_ui_window_move_object(onChangeHandler, other);
+		w32oop_ui_window_move_assignment_end();
+	}
 	void onCreated() {
 		Button::onCreated();
 	}
@@ -305,7 +371,12 @@ public:
 		: BaseSystemWindow(parent, text, width, height, x, y, style) {
 	}
 	StatusBar() : BaseSystemWindow(0, L"", 0, 0, 1, 1, STYLE) {}
-	w32oop_ui_foundation_add_mover(StatusBar, BaseSystemWindow);
+	StatusBar(StatusBar&& other) noexcept : w32oop_ui_window_move_ctor_super(BaseSystemWindow, other) {}
+	StatusBar& operator=(StatusBar&& other) noexcept {
+		w32oop_ui_window_move_assignment_start(other);
+		w32oop_ui_window_move_super(BaseSystemWindow, other);
+		w32oop_ui_window_move_assignment_end();
+	}
 	~StatusBar() override {}
 	inline void simple(bool isSimple) {
 		send(SB_SIMPLE, isSimple ? TRUE : FALSE, 0);
@@ -343,7 +414,15 @@ public:
 		: BaseSystemWindow(parent, L"", width, height, x, y, style) {
 	}
 	TrackBar() : BaseSystemWindow(0, L"", 0, 0, 1, 1, STYLE) {}
-	w32oop_ui_foundation_add_mover(TrackBar, BaseSystemWindow);
+	TrackBar(TrackBar&& other) noexcept : w32oop_ui_window_move_ctor_super(BaseSystemWindow, other),
+		w32oop_ui_window_move_ctor_object(callback, other)
+	{}
+	TrackBar& operator=(TrackBar&& other) noexcept {
+		w32oop_ui_window_move_assignment_start(other);
+		w32oop_ui_window_move_super(BaseSystemWindow, other);
+		w32oop_ui_window_move_object(callback, other);
+		w32oop_ui_window_move_assignment_end();
+	}
 	~TrackBar() override {}
 protected:
 	const wstring get_class_name() const override {
@@ -409,6 +488,40 @@ public:
 	{
 		set_framework_dpi_virtualization(false);
 	};
+	InputDialog(InputDialog&& other) noexcept : w32oop_ui_window_move_ctor_super(Window, other),
+		w32oop_ui_window_move_ctor_object(prompt, other),
+		w32oop_ui_window_move_ctor_object(editBox, other),
+		w32oop_ui_window_move_ctor_object(accept, other),
+		w32oop_ui_window_move_ctor_object(reject, other),
+		w32oop_ui_window_move_ctor_object(textBuffer, other)
+	{
+		w32oop_ui_window_move_value(m_scale, other);
+		w32oop_ui_window_move_value(_logical_width, other);
+		w32oop_ui_window_move_value(_logical_height, other);
+		w32oop_ui_window_move_value(promptFont, other);
+		w32oop_ui_window_move_value(rejected, other);
+		w32oop_ui_window_move_value(isActive, other);
+		w32oop_ui_window_move_value(isCreated, other);
+		w32oop_ui_window_move_value(_usePassmode, other);
+	}
+	InputDialog& operator=(InputDialog&& other) noexcept {
+		w32oop_ui_window_move_assignment_start(other);
+		w32oop_ui_window_move_super(Window, other);
+		w32oop_ui_window_move_object(prompt, other);
+		w32oop_ui_window_move_object(editBox, other);
+		w32oop_ui_window_move_object(accept, other);
+		w32oop_ui_window_move_object(reject, other);
+		w32oop_ui_window_move_object(textBuffer, other);
+		w32oop_ui_window_move_value(m_scale, other);
+		w32oop_ui_window_move_value(_logical_width, other);
+		w32oop_ui_window_move_value(_logical_height, other);
+		w32oop_ui_window_move_value(promptFont, other);
+		w32oop_ui_window_move_value(rejected, other);
+		w32oop_ui_window_move_value(isActive, other);
+		w32oop_ui_window_move_value(isCreated, other);
+		w32oop_ui_window_move_value(_usePassmode, other);
+		w32oop_ui_window_move_assignment_end();
+	}
 
 protected:
 	int s(int n) const {
