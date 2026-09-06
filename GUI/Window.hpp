@@ -235,6 +235,7 @@ protected:
 	inline void set_framework_dpi_virtualization(bool enable) {
 		_disable_framework_dpi_virtualization_for_this_window = !enable;
 	}
+	float get_dpi_scale_factor() const { return _dpi_scale_factor; };
 	void update_dpi_scale_factor(float new_factor, bool _Indirect);
 public:
 	// 如果关闭当前窗口的框架虚拟化功能，那么所有子控件的虚拟化也将被一并关闭。
