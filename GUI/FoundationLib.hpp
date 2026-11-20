@@ -48,15 +48,21 @@ namespace foundation {
 		}
 		virtual void set_parent(HWND parent) {
 			this->parent_window = parent;
+			ChildControlWindow__set_parent_final_impl(this->parent_window);
 		}
 		virtual void set_parent(Window* pParent) {
 			if (pParent) this->parent_window = *pParent;
 			else this->parent_window = nullptr;
+			ChildControlWindow__set_parent_final_impl(this->parent_window);
 		}
 	protected:
 		unsigned long long ctlid;
 		HWND parent_window;
 		HWND new_window() override;
+	private:
+		void ChildControlWindow__set_parent_final_impl(HWND hWnd) {
+			if (created() && is_alive()) SetParent(this->hwnd, hWnd);
+		}
 	};
 }
 
@@ -463,8 +469,8 @@ protected:
 		if (ev.defaultPrevented()) ev.returnValue(TRUE);
 	}
 public:
-	void onbeforechange(function<void(EventData&)> callback) {
-		this->callback = callback;
+	void onbeforechange(function<void(EventData&)> callback2) {
+		this->callback = callback2;
 	}
 };
 
@@ -557,8 +563,7 @@ protected:
 	virtual void setup_event_handlers() override {
 		WINDOW_add_handler(WM_PAINT, paint);
 		WINDOW_add_handler(WM_NCHITTEST, onHittest);
-		WINDOW_add_handler(WM_SIZING, doLayout);
-		WINDOW_add_handler(WM_SIZE, doLayout);
+		WINDOW_add_handler(WM_WINDOWPOSCHANGED, doLayout);
 		WINDOW_add_handler(WM_DPICHANGED, onDpiChanged);
 		WINDOW_add_handler(WM_NCCALCSIZE, onNcCalcSize);
 		WINDOW_add_handler(WM_NCACTIVATE, onNcActivate);
@@ -568,6 +573,7 @@ protected:
 	}
 
 	inline bool hittest_closeButton(int32_t x, int32_t y, int32_t w, int32_t h) {
+		UNREFERENCED_PARAMETER(h);
 		return (x >= w - s(40) && x <= w) && (y >= 0 && y < s(40));
 	}
 

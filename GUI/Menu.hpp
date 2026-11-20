@@ -242,9 +242,9 @@ namespace w32oop::ui {
 			return pop(pt.x, pt.y, true, owner); // 弹出菜单
 		}
 		// 运行对应的处理程序
-		bool run(int nId);
+		bool run(UINT nId);
 	private:
-		bool _run_handler_for_item(const MenuItem& item, int nId);
+		bool _run_handler_for_item(const MenuItem& item, UINT nId);
 		static bool _build_itermenu(HMENU hMenu, const MenuItem& item, w32MenuHandleEx& owner);
 		static void _build_menutree(HMENU hMenu, const MenuItem& item, w32MenuHandleEx& owner);
 

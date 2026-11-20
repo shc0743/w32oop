@@ -1,6 +1,8 @@
 ﻿#include "Registry.hpp"
 using namespace w32oop;
 using namespace w32oop::system;
+#pragma warning(push)
+#pragma warning(disable: 4456)
 
 
 bool WINAPI w32oop::system::w32RegCloseKey(HKEY hKey) {
@@ -269,3 +271,5 @@ bool w32oop::system::RegistryKey::exists_value(wstring valueName) const {
 	auto result = RegQueryValueExW(hKey, valueName.c_str(), nullptr, &type, nullptr, nullptr);
 	return result == ERROR_SUCCESS;
 }
+
+#pragma warning(pop)

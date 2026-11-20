@@ -28,12 +28,12 @@ HWND w32oop::ui::foundation::ChildControlWindow::new_window() {
 	return w;
 }
 
-LRESULT w32oop::ui::BaseSystemWindow::default_handler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
-	if (!old_wndproc) return Window::default_handler(hwnd, message, wParam, lParam);
-	return CallWindowProcW(old_wndproc, hwnd, message, wParam, lParam);
+LRESULT w32oop::ui::BaseSystemWindow::default_handler(HWND hwnd2, UINT message, WPARAM wParam, LPARAM lParam) {
+	if (!old_wndproc) return Window::default_handler(hwnd2, message, wParam, lParam);
+	return CallWindowProcW(old_wndproc, hwnd2, message, wParam, lParam);
 }
 
-void w32oop::ui::foundation::StaticEx::onSize(EventData& ev) {
+void w32oop::ui::foundation::StaticEx::onSize(EventData&) {
 	RECT rc = client_rect();
 	_MyStatic.resize(0, 0, rc.right - rc.left, rc.bottom - rc.top);
 }
@@ -197,7 +197,7 @@ void w32oop::ui::foundation::InputDialog::onHittest(EventData& ev) {
 	ev.returnValue(ret);
 }
 
-void w32oop::ui::foundation::InputDialog::doLayout(EventData& ev) {
+void w32oop::ui::foundation::InputDialog::doLayout(EventData&) {
 	if (!editBox || !accept || !reject) return;
 
 	// 窗口级虚拟化已关闭：GetClientRect 返回物理客户区；固定偏移量按 m_scale 缩放。

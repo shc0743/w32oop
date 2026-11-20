@@ -40,15 +40,15 @@ namespace w32oop::core {
 		// Constructors (Resource Acquisition Is Initialization)
 		w32BaseHandle(HandleType value) {
 			this->value = value;
-			validate(); // RAII: Throws if invalid
+			// keep the behavior same: do not validate
 		}
 		virtual ~w32BaseHandle() {
 			if (is_closable()) HandleCloser(value);
 		}
 		// Construct from a handle
-		w32BaseHandle& operator=(HandleType value) {
+		w32BaseHandle& operator=(HandleType value2) {
 			if (is_closable()) HandleCloser(this->value); // in operator=, we should close the old handle first
-			this->value = value;
+			this->value = value2;
 			// do not validate
 			return *this;
 		}

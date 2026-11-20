@@ -26,10 +26,14 @@ namespace w32oop::util {
 		ErrorChecker& operator=(const ErrorChecker& other) {
 			this->code = other.code;
 			this->msg = other.msg;
+			this->hExtraModule = other.hExtraModule;
+			return *this;
 		};
 		ErrorChecker& operator=(const DWORD& other) {
 			this->code = other;
+			this->hExtraModule = NULL;
 			format();
+			return *this;
 		};
 
 		DWORD get() const noexcept { return code; }

@@ -94,7 +94,7 @@ int w32oop::ui::Menu::pop(long x, long y, bool run_handler, Window* owner) {
 	return result;
 }
 
-bool w32oop::ui::Menu::run(int nId) {
+bool w32oop::ui::Menu::run(UINT nId) {
 	// 找到对应的菜单项并运行
 	try {
 		for (auto& i : children) {
@@ -114,7 +114,7 @@ bool w32oop::ui::Menu::run(int nId) {
 	return false;
 }
 
-bool w32oop::ui::Menu::_run_handler_for_item(const MenuItem& item, int nId) {
+bool w32oop::ui::Menu::_run_handler_for_item(const MenuItem& item, UINT nId) {
 	for (auto& i : item.get_children()) {
 		if (i.id() == nId) {
 			i.click();

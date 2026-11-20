@@ -20,7 +20,7 @@ w32oop::ui::TrayIcon::TrayIcon() {
 
 	add(); // 添加托盘图标
 
-	win.addEventListener(WM_TaskbarCreated, [this](EventData& ev) {
+	win.addEventListener(WM_TaskbarCreated, [this](EventData&) {
 		_update();
 	});
 	addEventListener(nid.uCallbackMessage, [this](EventData& ev) {

@@ -10,7 +10,6 @@ Service ServiceManager::get(wstring name, DWORD access) {
 Service w32oop::system::ServiceManager::create(wstring name, wstring binPath, 
 	DWORD startup_type, wstring displayName, wstring description, DWORD type) {
 	if (displayName.empty()) displayName = name;
-	DWORD err = 0;
 	Service svc(CreateServiceW(scm, name.c_str(), displayName.c_str(),
 		SERVICE_ALL_ACCESS, type, startup_type, SERVICE_ERROR_NORMAL, binPath.c_str(),
 		NULL, NULL, NULL, NULL, NULL));
