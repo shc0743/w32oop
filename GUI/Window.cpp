@@ -841,7 +841,7 @@ int Window::run(Window* dialog) {
 			myproc_data = new HotKeyProcInternal();
 			hooker.user = (long long)myproc_data;
 			hooker.proc = proc;
-			hooker.set(idHook, dwThreadId, GetModuleHandleW(NULL));
+			hooker.set(idHook, dwThreadId, NULL);
 			myproc_data->hHook = hooker.getHook(); // 遗留设计。有时间再清理
 			myproc_data->thread_id = GetCurrentThreadId();
 		} while (0);

@@ -38,14 +38,12 @@ namespace w32oop::system {
 	class Hook : public w32HookObject {
 	protected:
 		w32HookHandle hHook;
-		HOOKPROC ptrCallback;
+		HOOKPROC ptrCallback = nullptr;
 		
 	public:
-		Hook() {
-			ptrCallback = create_proc(cb, (long long)(void*)this);
-		}
+		Hook() {}
 		virtual ~Hook() {
-			VirtualFree(ptrCallback, 0, MEM_RELEASE);
+			if (ptrCallback) VirtualFree(ptrCallback, 0, MEM_RELEASE);
 		}
 
 		virtual void set(int idHook, DWORD dwThreadId, HINSTANCE hMod = NULL) final;

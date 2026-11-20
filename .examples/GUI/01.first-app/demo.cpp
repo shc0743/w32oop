@@ -15,7 +15,7 @@ class MyFirstApp : public Window {
 public:
     MyFirstApp() : Window(L"My First App", 480, 320, 0, 0, WS_OVERLAPPEDWINDOW) {}
 protected:
-    void onClicked(EventData& event) {
+    void onClicked(EventData&) {
         int i = 0;
         TaskDialog(hwnd, NULL, L"My First App MessageBox",
             L"You did it!", L"The window was clicked.", TDCBF_CANCEL_BUTTON | TDCBF_OK_BUTTON,
@@ -40,6 +40,9 @@ int WINAPI wWinMain(
     _In_ PWSTR pCmdLine,
     _In_ int nCmdShow
 ) {
+    UNREFERENCED_PARAMETER(hInstance);
+    UNREFERENCED_PARAMETER(hPrevInstance);
+    UNREFERENCED_PARAMETER(pCmdLine);
     // Optional: Enabling debug mode
     Window::set_global_option(Window::GlobalOptions::Option_DebugMode, true);
     // Running your app

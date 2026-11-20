@@ -57,7 +57,7 @@ protected:
             scope = HotKeyOptions::Scope::Thread;
         } else if (mode == 3) {
             scope = HotKeyOptions::Scope::System;
-        }
+        } else return;
 
         register_hot_key(true, true, false, key, [this](HotKeyProcData &event) {
             if (pd.checked()) event.preventDefault();
@@ -172,7 +172,7 @@ protected:
 };
 
 // Using console so that we can see the debug output
-int main(int argc, char* argv[]) {
+int main() {
     try {
         // Enabling debug mode
         Window::set_global_option(Window::GlobalOptions::Option_DebugMode, true);
@@ -182,7 +182,7 @@ int main(int argc, char* argv[]) {
         app.set_main_window();
         app.center();
         app.show();
-        SetConsoleCtrlHandler([](DWORD dwCtrlType) {
+        SetConsoleCtrlHandler([](DWORD ) {
             cout << "No way to Ctrl+C!" << endl;
             return TRUE;
         }, TRUE);

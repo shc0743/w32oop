@@ -28,18 +28,21 @@ private:
 		btn = Button(*this, L"Click me!", 100, 30, 10, 10);
 		btn.create();
 		btn.onClick([this] (EventData& event) {
+		    UNREFERENCED_PARAMETER(event);
 			text.text(L"Hello, World!");
 		});
 
 		textBox = Edit(*this, L"Hello, World!", 200, 30, 10, 50);
 		textBox.create();
 		textBox.onChange([this] (EventData& event) {
+		    UNREFERENCED_PARAMETER(event);
 			text.text(L"Text area edited");
 		});
 
 		textBoxColorSetter = Edit(*this, L"#abcdef", 120, 30, 10, 160);
 		textBoxColorSetter.create();
 		textBoxColorSetter.onChange([this] (EventData& event) {
+		    UNREFERENCED_PARAMETER(event);
 			try {
 				text.color(ParseRgbColorRt(w32oop::util::str::encodings::utf16_utf8(textBoxColorSetter.text())));
 				text.text(L"Color updated!!");
@@ -65,6 +68,10 @@ int WINAPI wWinMain(
 	_In_ PWSTR pCmdLine,
 	_In_ int nCmdShow)
 {
+    UNREFERENCED_PARAMETER(hInstance);
+    UNREFERENCED_PARAMETER(hPrevInstance);
+    UNREFERENCED_PARAMETER(pCmdLine);
+	UNREFERENCED_PARAMETER(nCmdShow);
 	YourWindowClass window;
     window.create();
     window.set_main_window();

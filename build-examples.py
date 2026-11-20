@@ -46,6 +46,22 @@ def find_cpp_files(base_dir, exclude_prefixes=('.',)):
 
     return cpp_files
 
+COMPILE_COMMON = [
+    '/c',
+    '/EHsc', '/Zi', '/MT', '/std:c++20', '/D_UNICODE', '/DUNICODE', '/DNDEBUG',
+    '/nologo',
+    '/GS', '/GL', '/W4', '/Gy', '/Zc:wchar_t', '/Zc:inline', '/fp:precise',
+    '/Qspectre', '/QIntel-jcc-erratum', '/Gm-', '/O2', '/Gd', '/Oi', '/guard:ehcont', '/guard:cf',
+]
+
+def make_compile_cmd(src, obj, include_dirs, cl_exe='cl.exe', extra_flags=()):
+    cmd = [cl_exe, *COMPILE_COMMON, *extra_flags]
+    for d in include_dirs:
+        cmd.append(f'/I{d}')
+    cmd.append(f'/Fo{obj}')
+    cmd.append(src)
+    return cmd
+
 def compile_to_objs(cpp_files, output_dir, include_dirs, cl_exe='cl.exe'):
     """编译所有 .cpp 文件为 .obj 文件"""
     obj_files = []
@@ -78,14 +94,7 @@ def compile_to_objs(cpp_files, output_dir, include_dirs, cl_exe='cl.exe'):
 
         if need_compile:
             # 构建编译命令
-            cmd = [
-                cl_exe,
-                '/c',  # 只编译不链接
-                '/EHsc', '/Zi', '/MT', '/std:c++20', '/D_UNICODE', '/DUNICODE',
-                '/nologo',
-                f'/Fo{obj_path}',
-                f'{cpp_file}'
-            ]
+            cmd = make_compile_cmd(cpp_file, obj_path, include_dirs, cl_exe)
 
             # 添加包含目录
             for include_dir in include_dirs:
@@ -148,14 +157,7 @@ def build_examples(examples_dir, obj_dir, link_exe='link.exe'):
             # 编译 demo.cpp
             demo_obj = os.path.join(example_obj_dir, "demo.obj")
 
-            compile_cmd = [
-                'cl.exe',
-                '/c', '/EHsc', '/Zi', '/MT', '/std:c++20',
-                '/nologo',
-                '/D_UNICODE', '/DUNICODE',
-                f'/Fo{demo_obj}',
-                f'{demo_cpp}'
-            ]
+            compile_cmd = make_compile_cmd(demo_cpp, demo_obj, include_dirs=[os.getcwd()], extra_flags=())
             print(f'\033[94m{' '.join(compile_cmd)}\033[0m')
 
             # 添加包含目录 (包括项目根目录)
@@ -189,7 +191,13 @@ def build_examples(examples_dir, obj_dir, link_exe='link.exe'):
                 '/nologo',
                 '/INCREMENTAL:NO',
                 '/MANIFESTUAC:level="asInvoker" uiAccess="false"',
+                '/NXCOMPAT',
+                '/DYNAMICBASE',
                 '/OPT:REF',
+                '/OPT:ICF',
+                '/LTCG',
+                '/guard:ehcont', '/guard:cf',
+                '/Brepro',
             ] + all_obj_files + sys_lib
 
             # 执行链接

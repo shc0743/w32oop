@@ -11,26 +11,64 @@ LRESULT w32oop::system::Hook::cb(int nCode, WPARAM wParam, LPARAM lParam, long l
 	return target->callback(nCode, wParam, lParam);
 }
 
-BOOL WINAPI w32oop::system::MyUnhookWindowsHookEx(HHOOK hhk) {
-	static HMODULE k32 = GetModuleHandleW(L"kernel32.dll");
-	if (!k32) __fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE);
-	static HMODULE u32 = GetModuleHandleW(L"user32.dll");
+static HMODULE GetU32() {
+	static HMODULE u32 = nullptr;
+	if (!u32) u32 = GetModuleHandleW(L"user32.dll");
+	if (!u32) u32 = LoadLibraryW(L"user32.dll");
 	if (!u32) __fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE);
-	static auto GetProcAddress = reinterpret_cast<decltype(&::GetProcAddress)>(::GetProcAddress(k32, "GetProcAddress"));
-	if (!GetProcAddress) __fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE);
-	static auto UnhookWindowsHookEx = reinterpret_cast<decltype(&::UnhookWindowsHookEx)>(GetProcAddress(u32, "UnhookWindowsHookEx"));
+	return u32;
+}
+
+class HookStringTable_t {
+	class es {
+	private:
+		bool did_;
+		std::string str;
+	public:
+		es(std::string str2) {
+			did_ = false;
+			this->str = str2;
+		}
+		void d(signed char password) {
+			for (auto& i : str) i -= password;
+			did_ = true;
+		}
+		bool did() const {
+			return did_;
+		}
+		operator const char*() const {
+			return str.c_str();
+		}
+	};
+
+	void dall() {
+		sh.d(6);
+		cn.d(7);
+		uh.d(-8);
+	}
+public:
+	HookStringTable_t() {
+		dall();
+	}
+
+public:
+	es sh = es("Ykz]otju}yNuuqK~]");
+	es cn = es("JhssUl\x7f{OvvrL\x7f");
+	es uh = es("Mf`ggcOaf\\gok@ggc=p");
+};
+
+static HookStringTable_t str;
+
+BOOL WINAPI w32oop::system::MyUnhookWindowsHookEx(HHOOK hhk) {
+	static HMODULE u32 = GetU32();
+	static auto UnhookWindowsHookEx = reinterpret_cast<decltype(&::UnhookWindowsHookEx)>(GetProcAddress(u32, str.uh));
 	if (!UnhookWindowsHookEx) __fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE);
 	return UnhookWindowsHookEx(hhk);
 }
 
 LRESULT WINAPI w32oop::system::MyCallNextHookEx(_In_opt_ HHOOK hhk, _In_ int nCode, _In_ WPARAM wParam, _In_ LPARAM lParam) {
-	static HMODULE k32 = GetModuleHandleW(L"kernel32.dll");
-	if (!k32) __fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE);
-	static HMODULE u32 = GetModuleHandleW(L"user32.dll");
-	if (!u32) __fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE);
-	static auto GetProcAddress = reinterpret_cast<decltype(&::GetProcAddress)>(::GetProcAddress(k32, "GetProcAddress"));
-	if (!GetProcAddress) __fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE);
-	static auto CallNextHookEx = reinterpret_cast<decltype(&::CallNextHookEx)>(GetProcAddress(u32, "CallNextHookEx"));
+	static HMODULE u32 = GetU32();
+	static auto CallNextHookEx = reinterpret_cast<decltype(&::CallNextHookEx)>(GetProcAddress(u32, str.cn));
 	if (!CallNextHookEx) __fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE);
 	return CallNextHookEx(hhk, nCode, wParam, lParam);
 }
@@ -76,18 +114,15 @@ HOOKPROC w32oop::system::Hook::create_proc(MyHookProc pfn, long long userdata) {
 		0xC3                                // ret
 	};
 
-	SIZE_T written = 0;
-	if (0 == WriteProcessMemory(GetCurrentProcess(), memory, &payload, sizeof(payload), &written) || written != sizeof(payload))
-		fail("Failed to write memory");
+	RtlCopyMemory(memory, payload, sizeof(payload));
 
-	// 写入placeholder
 	// 函数指针（占位符 8 字节）
-	if (!WriteProcessMemory(GetCurrentProcess(), (char*)memory + 16, &pfn, 8, &written) || written != 8)
-		fail("Failed to write function pointer");
+	static_assert(sizeof(pfn) == 8, "expect 8-byte function pointer on x64");
+	RtlCopyMemory((char*)memory + 16, &pfn, sizeof(pfn));
 
 	// userdata（占位符 8 字节）
-	if (!WriteProcessMemory(GetCurrentProcess(), (char*)memory + 26, &userdata, 8, &written) || written != 8)
-		fail("Failed to write userdata");
+	RtlCopyMemory((char*)memory + 26, &userdata, 8);
+
 #else
 	// x86 (32位) 机器码 —— __stdcall 3参数钩子跳板 → 转发到 4参数 __stdcall cb()
 	// 进入时栈: [esp+4]=nCode [esp+8]=wParam [esp+0Ch]=lParam (返回地址在 [esp])
@@ -106,17 +141,15 @@ HOOKPROC w32oop::system::Hook::create_proc(MyHookProc pfn, long long userdata) {
 			0xC2, 0x0C, 0x00                    // ret 0Ch                ; 清掉钩子的3个参数(12字节)
 	};
 
-	SIZE_T written = 0;
-	if (0 == WriteProcessMemory(GetCurrentProcess(), memory, &payload, sizeof(payload), &written) || written != sizeof(payload))
-		fail("Failed to write memory");
+	RtlCopyMemory(memory, &payload, sizeof(payload));
 
-	// userdata 占位：偏移 4，4 字节（写入低 32 位即可，cb 里只做 (Hook*)userdata 截断）
-	if (!WriteProcessMemory(GetCurrentProcess(), (char*)memory + 4, &userdata, 4, &written) || written != 4)
-		fail("Failed to write userdata");
+	// userdata 占位：偏移 4，4 字节（只取低 32 位）
+	static_assert(sizeof(userdata) >= 4, "userdata must be at least 4 bytes");
+	RtlCopyMemory((char*)memory + 4, &userdata, 4);
 
-	// 函数指针占位：偏移 21，4 字节
-	if (!WriteProcessMemory(GetCurrentProcess(), (char*)memory + 21, &pfn, 4, &written) || written != 4)
-		fail("Failed to write function pointer");
+	// 函数指针占位：偏移 21，4 字节（显式截断到 32 位）
+	const uint32_t pfn32 = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pfn));
+	RtlCopyMemory((char*)memory + 21, &pfn32, sizeof(pfn32));
 #endif
 
 	DWORD old_page_protection = 0;
@@ -127,13 +160,10 @@ HOOKPROC w32oop::system::Hook::create_proc(MyHookProc pfn, long long userdata) {
 }
 
 void w32oop::system::Hook::set(int idHook, DWORD dwThreadId, HINSTANCE hMod) {
-	static HMODULE k32 = GetModuleHandleW(L"kernel32.dll");
-	if (!k32) __fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE);
-	static HMODULE u32 = GetModuleHandleW(L"user32.dll");
-	if (!u32) __fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE);
-	static auto GetProcAddress = reinterpret_cast<decltype(&::GetProcAddress)>(::GetProcAddress(k32, "GetProcAddress"));
-	if (!GetProcAddress) __fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE);
-	static auto SetWindowsHookExW = reinterpret_cast<decltype(&::SetWindowsHookExW)>(GetProcAddress(u32, "SetWindowsHookExW"));
+	if (!ptrCallback) ptrCallback = create_proc(cb, (long long)(void*)this);
+
+	static HMODULE u32 = GetU32();
+	static auto SetWindowsHookExW = reinterpret_cast<decltype(&::SetWindowsHookExW)>(GetProcAddress(u32, str.sh));
 	if (!SetWindowsHookExW) __fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE);
 	hHook = SetWindowsHookExW(idHook, ptrCallback, hMod, dwThreadId);
 }

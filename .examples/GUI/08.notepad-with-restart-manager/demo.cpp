@@ -198,7 +198,7 @@ namespace MyDemo {
             WriteFile(hSessionLock, &dwFilePathLen, sizeof(DWORD), &bytesWritten, nullptr);
             if (dwFilePathLen) WriteFile(hSessionLock, filepath, DWORD(dwFilePathLen * sizeof(wchar_t)), &bytesWritten, nullptr);
             // 写入文件内容
-            if (!WriteFile(hSessionLock, u8.c_str(), u8.length(), &bytesWritten, nullptr)) {
+            if (!WriteFile(hSessionLock, u8.c_str(), (DWORD)u8.length(), &bytesWritten, nullptr)) {
                 return event.returnValue(0);
             }
             event.returnValue(1);
@@ -295,7 +295,7 @@ namespace MyDemo {
             }
             string u8 = w32oop::util::str::encodings::utf16_utf8(txtEditor.text());
             DWORD bytesWritten = 0;
-            if (!WriteFile(hFile, u8.c_str(), u8.length(), &bytesWritten, nullptr)) {
+            if (!WriteFile(hFile, u8.c_str(), (DWORD)u8.length(), &bytesWritten, nullptr)) {
                 MessageBoxW(hwnd, (L"对不起！我写不了这个文件！原因是：" + to_wstring(GetLastError())).c_str(), L"Sorry!", MB_ICONERROR);
             } else {
                 unsaved = false;
@@ -305,10 +305,10 @@ namespace MyDemo {
         }
 
     private:
-        void onSizeChange(EventData &e) {
+        void onSizeChange(EventData&) {
             RECT rc = client_rect();
             int btnHeight = 30, btnWidth = 80, btnMargin = 10;
-            int lblHeight = 30, lblWidth = 300;
+            int lblHeight = 30;
             int editorMarginTop = 50;
             int editorMarginSide = 10;
             // 按钮
@@ -409,8 +409,7 @@ namespace MyDemo {
         }
 
         virtual void setup_event_handlers() override {
-            WINDOW_add_handler(WM_SIZING, onSizeChange);
-            WINDOW_add_handler(WM_SIZE, onSizeChange);
+            WINDOW_add_handler(WM_WINDOWPOSCHANGED, onSizeChange);
             WINDOW_add_handler(WM_CLOSE, onWillClose);
             WINDOW_add_handler(WM_QUERYENDSESSION, onWillShutdown);
             WINDOW_add_handler(WM_ENDSESSION, onWillShutdown);

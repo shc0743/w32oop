@@ -27,11 +27,11 @@ protected:
         text.set_parent(this);
         text.create(L"nothing to be saved", 300, 30, 120, 240);
 
-        edit.onChange([this](EventData& event) {
+        edit.onChange([this](EventData&) {
             unsaved = true;
             text.text(L"Unsaved changes detected");
         });
-        save.onClick([this](EventData& event) {
+        save.onClick([this](EventData&) {
             // add your real save logic here
             unsaved = false;
             text.text(L"Changes saved successfully");
@@ -61,6 +61,9 @@ int WINAPI wWinMain(
     _In_ PWSTR pCmdLine,
     _In_ int nCmdShow
 ) {
+    UNREFERENCED_PARAMETER(hInstance);
+    UNREFERENCED_PARAMETER(hPrevInstance);
+    UNREFERENCED_PARAMETER(pCmdLine);
     AppThatAllowsConfirmationOnClose app;
     app.create();
     app.set_main_window();

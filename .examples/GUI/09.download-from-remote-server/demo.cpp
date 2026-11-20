@@ -26,7 +26,7 @@ private:
 		winhttp = LoadLibraryW(L"winhttp.dll");
 		btn = Button(*this, L"Click me to download", 360, 30, 10, 10);
 		btn.create();
-		btn.onClick([this] (EventData& event) {
+		btn.onClick([this] (EventData&) {
 			InputDialog idd; idd.create(); idd.center(hwnd);
 			idd.setButtonsText(L"Download", L"Cancel");
 			auto value = idd.getInput<wstring>(L"Input URL, Please.");
@@ -60,7 +60,7 @@ private:
 		textBox = Edit(*this, L"", 360, 165, 10, 85, Edit::STYLE | ES_AUTOHSCROLL | ES_AUTOVSCROLL | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE | ES_WANTRETURN);
 		textBox.create();
 	}
-	void doLayout(EventData& ev) {
+	void doLayout(EventData&) {
 		RECT rc = client_rect();
 		auto w = rc.right - rc.left, h = rc.bottom - rc.top;
 		// 调整控件大小
@@ -70,11 +70,10 @@ private:
 	}
 protected:
     virtual void setup_event_handlers() override {
-        WINDOW_add_handler(WM_USER + WM_CLOSE, [this](EventData& event) {
+        WINDOW_add_handler(WM_USER + WM_CLOSE, [this](EventData&) {
             removeEventListener(WM_CLOSE);
         });
-		WINDOW_add_handler(WM_SIZE, doLayout);
-		WINDOW_add_handler(WM_SIZING, doLayout);
+		WINDOW_add_handler(WM_WINDOWPOSCHANGED, doLayout);
 		WINDOW_add_handler(WM_USER + 100, [](EventData& ev) {
 			// unused code to prevent AntiMalware products from flagging the app due to too small
 			std::size_t guard = 0;
@@ -95,10 +94,14 @@ int WINAPI wWinMain(
 	_In_ PWSTR pCmdLine,
 	_In_ int nCmdShow)
 {
+    UNREFERENCED_PARAMETER(hInstance);
+    UNREFERENCED_PARAMETER(hPrevInstance);
+    UNREFERENCED_PARAMETER(pCmdLine);
+	
 	InternetAccessDemoWindow window;
     window.create();
     window.set_main_window();
     window.center();
-    window.show();
+    window.show(nCmdShow);
     return window.run();
 }

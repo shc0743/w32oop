@@ -96,8 +96,7 @@ namespace MyDemo {
 		}
 
 		virtual void setup_event_handlers() override {
-			WINDOW_add_handler(WM_SIZING, doLayout);
-			WINDOW_add_handler(WM_SIZE, doLayout);
+			WINDOW_add_handler(WM_WINDOWPOSCHANGED, doLayout);
 			WINDOW_add_handler(WM_VSCROLL, doLayout);
 			WINDOW_add_handler(WM_DROPFILES, onDropFiles);
 			WINDOW_add_handler(WM_MOUSEWHEEL, onMouseWheel);
@@ -128,7 +127,7 @@ namespace MyDemo {
 					updateLayout(rc.right - rc.left, rc.bottom - rc.top);
 				}
 			}
-			else { // WM_SIZE or WM_SIZING
+			else {
 				RECT rc = client_rect();
 				updateLayout(rc.right - rc.left, rc.bottom - rc.top);
 			}
@@ -218,6 +217,7 @@ namespace MyDemo {
 			// Button2: Handles the event *without* calling `stopPropagation()`.
 			//  The event will bubble to the parent window.
 			btn2.onClick([this](EventData& event) {
+		        UNREFERENCED_PARAMETER(event);
 				MessageBoxW(hwnd, L"Button2 Handler", L"Button2", MB_ICONINFORMATION);
 			});
 
@@ -289,6 +289,10 @@ int WINAPI wWinMain(
 	_In_ PWSTR pCmdLine,
 	_In_ int nCmdShow)
 {
+    UNREFERENCED_PARAMETER(hInstance);
+    UNREFERENCED_PARAMETER(hPrevInstance);
+    UNREFERENCED_PARAMETER(pCmdLine);
+	UNREFERENCED_PARAMETER(nCmdShow);
 	// create the application
 	MyDemo::EventBubbleDemo app(L"Event Bubble Demo", 640, 480);
 	// create it
