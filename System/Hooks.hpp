@@ -38,21 +38,25 @@ namespace w32oop::system {
 	class Hook : public w32HookObject {
 	protected:
 		w32HookHandle hHook;
-		HOOKPROC ptrCallback = nullptr;
+		using HookProcInfo = struct { HOOKPROC ptrCallback; uint32_t ptrCallbackId; };
+		HookProcInfo my_procedure{};
 		
 	public:
 		Hook() {}
-		virtual ~Hook() {
-			if (ptrCallback) VirtualFree(ptrCallback, 0, MEM_RELEASE);
-		}
+		virtual ~Hook();
 
 		virtual void set(int idHook, DWORD dwThreadId, HINSTANCE hMod = NULL) final;
 		virtual void unset() final;
 
+		static LRESULT CALLBACK cb(int nCode, WPARAM wParam, LPARAM lParam, long long userdata);
 	protected:
 		using MyHookProc = LRESULT(__stdcall*)(int code, WPARAM wParam, LPARAM lParam, long long userdata);
-		static LRESULT CALLBACK cb(int nCode, WPARAM wParam, LPARAM lParam, long long userdata);
-		static HOOKPROC create_proc(MyHookProc pfn, long long userdata);
+		static HookProcInfo create_proc(MyHookProc pfn, long long userdata);
+
+	private:
+		class ProcAddrMap_t;
+		friend class ProcAddrMap_t;
+		static ProcAddrMap_t ProcAddrMap;
 
 	protected:
 		virtual LRESULT callback(int nCode, WPARAM wParam, LPARAM lParam) = 0;

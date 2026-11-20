@@ -1,4 +1,6 @@
 ﻿#include "Hooks.hpp"
+#include <array>
+#include <utility>
 #include "../Utility/Memory.hpp"
 
 
@@ -22,39 +24,44 @@ static HMODULE GetU32() {
 class HookStringTable_t {
 	class es {
 	private:
-		bool did_;
+		std::atomic<bool> did_;
+		std::mutex mutex;
 		std::string str;
+		signed char password;
 	public:
-		es(std::string str2) {
+		es(std::string str2, signed char pass) {
 			did_ = false;
 			this->str = str2;
+			this->password = pass;
 		}
-		void d(signed char password) {
+	private:
+		void d() {
+			if (did_) return;
+			std::lock_guard gg(mutex);
+			if (did_) return;
 			for (auto& i : str) i -= password;
 			did_ = true;
 		}
-		bool did() const {
+	public:
+		inline bool did() const {
 			return did_;
 		}
-		operator const char*() const {
+		inline const std::string& data() const {
+			return str;
+		}
+		operator const char*() {
+			if (!did_) d();
 			return str.c_str();
 		}
 	};
 
-	void dall() {
-		sh.d(6);
-		cn.d(7);
-		uh.d(-8);
-	}
 public:
-	HookStringTable_t() {
-		dall();
-	}
+	HookStringTable_t() {}
 
 public:
-	es sh = es("Ykz]otju}yNuuqK~]");
-	es cn = es("JhssUl\x7f{OvvrL\x7f");
-	es uh = es("Mf`ggcOaf\\gok@ggc=p");
+	es sh = es("Ykz]otju}yNuuqK~]", 6);
+	es cn = es("JhssUl\x7f{OvvrL\x7f", 7);
+	es uh = es("Mf`ggcOaf\\gok@ggc=p", -8);
 };
 
 static HookStringTable_t str;
@@ -73,7 +80,70 @@ LRESULT WINAPI w32oop::system::MyCallNextHookEx(_In_opt_ HHOOK hhk, _In_ int nCo
 	return CallNextHookEx(hhk, nCode, wParam, lParam);
 }
 
-HOOKPROC w32oop::system::Hook::create_proc(MyHookProc pfn, long long userdata) {
+#pragma region support
+
+#define MAX_SLOTS 256
+
+struct ProcData {
+	bool slotIsFucked;
+	long long userdata;
+};
+static ProcData ProcDataMap[MAX_SLOTS]{};
+static SRWLOCK ProcDataMapx = SRWLOCK_INIT;
+
+template<uint32_t N>
+inline LRESULT CALLBACK HookThunk(int code, WPARAM wParam, LPARAM lParam) {
+	AcquireSRWLockShared(&ProcDataMapx);
+	long long u = ProcDataMap[N].userdata;
+	ReleaseSRWLockShared(&ProcDataMapx);
+	return w32oop::system::Hook::cb(code, wParam, lParam, u);
+}
+
+template<uint32_t... Is>
+inline constexpr std::array<HOOKPROC, sizeof...(Is)>
+MakeProcTable(std::index_sequence<Is...>) {
+	return { { &HookThunk<Is>... } };
+}
+
+class w32oop::system::Hook::ProcAddrMap_t {
+public:
+	ProcAddrMap_t() {}
+
+	uint32_t RequestThunk(long long userdata) {
+		uint32_t i = 0;
+		AcquireSRWLockExclusive(&ProcDataMapx);
+		for (; i < MAX_SLOTS; ++i) {
+			if (ProcDataMap[i].slotIsFucked) continue;
+			ProcDataMap[i].slotIsFucked = true;
+			ProcDataMap[i].userdata = userdata;
+			i = i + 1;
+			goto end;
+		}
+		i = 0;
+		end:
+		ReleaseSRWLockExclusive(&ProcDataMapx);
+		return i;
+	}
+	void ReleaseThunk(uint32_t id) {
+		AcquireSRWLockExclusive(&ProcDataMapx);
+		id -= 1;
+		ProcDataMap[id].slotIsFucked = false;
+		ReleaseSRWLockExclusive(&ProcDataMapx);
+	}
+	HOOKPROC QueryThunkAddressById(uint32_t id) {
+		if (id == 0 || id > MAX_SLOTS) return nullptr;
+		return ProcTable[size_t(id) - 1];
+	}
+private:
+	static constexpr auto ProcTable = MakeProcTable(std::make_index_sequence<MAX_SLOTS>{});
+};
+w32oop::system::Hook::ProcAddrMap_t w32oop::system::Hook::ProcAddrMap;
+
+#pragma endregion
+
+
+w32oop::system::Hook::HookProcInfo w32oop::system::Hook::create_proc(MyHookProc pfn, long long userdata) {
+#ifdef W32OOP_HOOKS_ENABLE_DYNAMIC
 	void* memory = VirtualAlloc(NULL, 4096, MEM_COMMIT, PAGE_READWRITE); // 4096是最小的了
 	if (!memory) throw std::bad_alloc();
 	const auto fail = [&](const char* reason) {
@@ -156,16 +226,31 @@ HOOKPROC w32oop::system::Hook::create_proc(MyHookProc pfn, long long userdata) {
 	if (!VirtualProtect(memory, sizeof(payload), PAGE_EXECUTE_READ, &old_page_protection)) // 防止写入
 		fail("Failed to change memory protection");
 
-	return reinterpret_cast<HOOKPROC>(memory);
+	return Hook::HookProcInfo{ .ptrCallback = reinterpret_cast<HOOKPROC>(memory), .ptrCallbackId = 0 };
+#else
+	UNREFERENCED_PARAMETER(pfn);
+	uint32_t id = ProcAddrMap.RequestThunk(userdata);
+	if (!id) throw std::runtime_error("slot is full");
+	return Hook::HookProcInfo{ .ptrCallback = ProcAddrMap.QueryThunkAddressById(id), .ptrCallbackId = id };
+#endif
+}
+
+w32oop::system::Hook::~Hook() {
+	if (my_procedure.ptrCallbackId) {
+		ProcAddrMap.ReleaseThunk(my_procedure.ptrCallbackId);
+	}
+	else if (my_procedure.ptrCallback) {
+		VirtualFree(my_procedure.ptrCallback, 0, MEM_RELEASE);
+	}
 }
 
 void w32oop::system::Hook::set(int idHook, DWORD dwThreadId, HINSTANCE hMod) {
-	if (!ptrCallback) ptrCallback = create_proc(cb, (long long)(void*)this);
+	if (!my_procedure.ptrCallback) my_procedure = create_proc(cb, (long long)(void*)this);
 
 	static HMODULE u32 = GetU32();
 	static auto SetWindowsHookExW = reinterpret_cast<decltype(&::SetWindowsHookExW)>(GetProcAddress(u32, str.sh));
 	if (!SetWindowsHookExW) __fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE);
-	hHook = SetWindowsHookExW(idHook, ptrCallback, hMod, dwThreadId);
+	hHook = SetWindowsHookExW(idHook, my_procedure.ptrCallback, hMod, dwThreadId);
 }
 
 void w32oop::system::Hook::unset() {
