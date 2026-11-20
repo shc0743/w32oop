@@ -48,10 +48,11 @@ namespace w32oop::system {
 		virtual void set(int idHook, DWORD dwThreadId, HINSTANCE hMod = NULL) final;
 		virtual void unset() final;
 
-		static LRESULT CALLBACK cb(int nCode, WPARAM wParam, LPARAM lParam, long long userdata);
 	protected:
-		using MyHookProc = LRESULT(__stdcall*)(int code, WPARAM wParam, LPARAM lParam, long long userdata);
+		using MyHookProc = LRESULT(CALLBACK*)(int code, WPARAM wParam, LPARAM lParam, long long userdata);
+		static LRESULT CALLBACK cb(int nCode, WPARAM wParam, LPARAM lParam, long long userdata);
 		static HookProcInfo create_proc(MyHookProc pfn, long long userdata);
+		static void uncreate_proc(_Inout_ HookProcInfo* lpProcedure);
 
 	private:
 		class ProcAddrMap_t;

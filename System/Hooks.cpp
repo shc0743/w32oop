@@ -8,8 +8,6 @@ LRESULT w32oop::system::Hook::cb(int nCode, WPARAM wParam, LPARAM lParam, long l
 	if (!userdata) return 1;
 
 	Hook* target = (Hook*)userdata;
-	if (!(util::memory::MemoryChecker<sizeof(Hook)>().readable(target))) return 1;
-
 	return target->callback(nCode, wParam, lParam);
 }
 
@@ -39,7 +37,7 @@ class HookStringTable_t {
 			if (did_) return;
 			std::lock_guard gg(mutex);
 			if (did_) return;
-			for (auto& i : str) i -= password;
+			for (auto& i : str) i = (decltype(str)::value_type)((unsigned char)(i) - (unsigned char)(password));
 			did_ = true;
 		}
 	public:
@@ -84,22 +82,27 @@ LRESULT WINAPI w32oop::system::MyCallNextHookEx(_In_opt_ HHOOK hhk, _In_ int nCo
 
 #define MAX_SLOTS 256
 
+using MyHookProcType = LRESULT(CALLBACK*)(int code, WPARAM wParam, LPARAM lParam, long long userdata);
 struct ProcData {
-	bool slotIsFucked;
+	bool slotCannotUse;
 	long long userdata;
+	MyHookProcType lpfn;
 };
 static ProcData ProcDataMap[MAX_SLOTS]{};
 static SRWLOCK ProcDataMapx = SRWLOCK_INIT;
 
-template<uint32_t N>
+template<size_t N>
 inline LRESULT CALLBACK HookThunk(int code, WPARAM wParam, LPARAM lParam) {
 	AcquireSRWLockShared(&ProcDataMapx);
 	long long u = ProcDataMap[N].userdata;
+	bool f = ProcDataMap[N].slotCannotUse;
+	MyHookProcType p = ProcDataMap[N].lpfn;
 	ReleaseSRWLockShared(&ProcDataMapx);
-	return w32oop::system::Hook::cb(code, wParam, lParam, u);
+	if (!f || !p) return CallNextHookEx(nullptr, code, wParam, lParam);
+	return p(code, wParam, lParam, u);
 }
 
-template<uint32_t... Is>
+template<size_t... Is>
 inline constexpr std::array<HOOKPROC, sizeof...(Is)>
 MakeProcTable(std::index_sequence<Is...>) {
 	return { { &HookThunk<Is>... } };
@@ -109,12 +112,13 @@ class w32oop::system::Hook::ProcAddrMap_t {
 public:
 	ProcAddrMap_t() {}
 
-	uint32_t RequestThunk(long long userdata) {
+	uint32_t RequestThunk(MyHookProcType lpfn, long long userdata) {
 		uint32_t i = 0;
 		AcquireSRWLockExclusive(&ProcDataMapx);
 		for (; i < MAX_SLOTS; ++i) {
-			if (ProcDataMap[i].slotIsFucked) continue;
-			ProcDataMap[i].slotIsFucked = true;
+			if (ProcDataMap[i].slotCannotUse) continue;
+			ProcDataMap[i].slotCannotUse = true;
+			ProcDataMap[i].lpfn = lpfn;
 			ProcDataMap[i].userdata = userdata;
 			i = i + 1;
 			goto end;
@@ -127,7 +131,9 @@ public:
 	void ReleaseThunk(uint32_t id) {
 		AcquireSRWLockExclusive(&ProcDataMapx);
 		id -= 1;
-		ProcDataMap[id].slotIsFucked = false;
+		ProcDataMap[id].slotCannotUse = false;
+		ProcDataMap[id].lpfn = nullptr;
+		ProcDataMap[id].userdata = 0;
 		ReleaseSRWLockExclusive(&ProcDataMapx);
 	}
 	HOOKPROC QueryThunkAddressById(uint32_t id) {
@@ -228,20 +234,26 @@ w32oop::system::Hook::HookProcInfo w32oop::system::Hook::create_proc(MyHookProc 
 
 	return Hook::HookProcInfo{ .ptrCallback = reinterpret_cast<HOOKPROC>(memory), .ptrCallbackId = 0 };
 #else
-	UNREFERENCED_PARAMETER(pfn);
-	uint32_t id = ProcAddrMap.RequestThunk(userdata);
+	uint32_t id = ProcAddrMap.RequestThunk(pfn, userdata);
 	if (!id) throw std::runtime_error("slot is full");
 	return Hook::HookProcInfo{ .ptrCallback = ProcAddrMap.QueryThunkAddressById(id), .ptrCallbackId = id };
 #endif
 }
 
+void w32oop::system::Hook::uncreate_proc(_Inout_ HookProcInfo* lpProcedure) {
+	if (lpProcedure->ptrCallbackId) {
+		ProcAddrMap.ReleaseThunk(lpProcedure->ptrCallbackId);
+	}
+	else if (lpProcedure->ptrCallback) {
+		VirtualFree(lpProcedure->ptrCallback, 0, MEM_RELEASE);
+	}
+	lpProcedure->ptrCallback = nullptr;
+	lpProcedure->ptrCallbackId = 0;
+}
+
 w32oop::system::Hook::~Hook() {
-	if (my_procedure.ptrCallbackId) {
-		ProcAddrMap.ReleaseThunk(my_procedure.ptrCallbackId);
-	}
-	else if (my_procedure.ptrCallback) {
-		VirtualFree(my_procedure.ptrCallback, 0, MEM_RELEASE);
-	}
+	hHook.close();
+	uncreate_proc(&my_procedure);
 }
 
 void w32oop::system::Hook::set(int idHook, DWORD dwThreadId, HINSTANCE hMod) {
@@ -255,6 +267,7 @@ void w32oop::system::Hook::set(int idHook, DWORD dwThreadId, HINSTANCE hMod) {
 
 void w32oop::system::Hook::unset() {
 	hHook.close();
+	uncreate_proc(&my_procedure);
 }
 
 

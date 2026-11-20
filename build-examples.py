@@ -48,7 +48,7 @@ def find_cpp_files(base_dir, exclude_prefixes=('.',)):
 
 COMPILE_COMMON = [
     '/c',
-    '/EHsc', '/Zi', '/Fd.cache/vc.pdb', '/MT', '/std:c++20', '/D_UNICODE', '/DUNICODE', '/DNDEBUG',
+    '/EHsc', '/permissive-', '/Zi', '/Fd.cache/vc.pdb', '/MT', '/std:c++20', '/D_UNICODE', '/DUNICODE', '/DNDEBUG',
     '/nologo',
     '/GS', '/GL', '/W4', '/Gy', '/Zc:wchar_t', '/Zc:inline', '/fp:precise',
     '/Qspectre', '/QIntel-jcc-erratum', '/Gm-', '/O2', '/Gd', '/Oi', '/guard:ehcont', '/guard:cf',

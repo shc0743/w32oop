@@ -15,7 +15,7 @@ namespace w32oop::core {
 	///	The base RAII class, for all handle types
 	/// </summary>
 	/// <typeparam name="HandleType">The type of the handle, "HANDLE" for example.</typeparam>
-	/// <typeparam name="invalid_exception_class">What will be thown if the handle is not valid?</typeparam>
+	/// <typeparam name="invalid_exception_class">What will be thown if the handle is not valid? Note: this will be thrown when use, not when assign</typeparam>
 	/// <typeparam name="AllowNegativeOneAsValidHandle">If the specific type accepts (-1). For example, in file handle -1 is considered as invalid, but in process handle, -1 is a pseudo handle referring to the current process itself.</typeparam>
 	/// <typeparam name="HandleCloser">The function pointer to close the handle, "CloseHandle" for example.</typeparam>
 	template <typename HandleType, bool AllowNegativeOneAsValidHandle, auto HandleCloser, typename invalid_exception_class>
@@ -68,7 +68,7 @@ namespace w32oop::core {
 			return *this;
 		}
 	public:
-		// Converter
+		// Converter, does validate
 		operator HandleType() const {
 			validate();
 			return value;
@@ -78,7 +78,7 @@ namespace w32oop::core {
 			return value;
 		}
 	public:
-		// Closer
+		// Closer, idempotent, does not throw
 		void close() noexcept {
 			if (is_closable()) HandleCloser(value);
 			value = 0;
