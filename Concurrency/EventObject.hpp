@@ -27,10 +27,6 @@ namespace w32oop::concurrency {
         EventObject(bool auto_reset, bool initial_state, PCWSTR name, LPSECURITY_ATTRIBUTES lpsa) :
             hEvent(CreateEventW(lpsa, !auto_reset, initial_state, name)) {}
 
-        ~EventObject() {
-            CloseHandle(hEvent);
-        }
-
         // Getters
         HANDLE get() const {
             return hEvent;

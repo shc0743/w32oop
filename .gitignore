@@ -33,6 +33,23 @@
 *.out
 *.app
 
+# Build directories
+/[Bb]uild/
+/[Bb]uild-*/
+/cmake-build-*/
+
+# CMake generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+install_manifest.txt
+compile_commands.json
+/build/
+/out/
+/.vs/
+CMakeUserPresets.json
+
 # Other
 copilot-chat
 CopilotIndices
@@ -41,3 +58,4 @@ out
 ipch
 *.ipch
 .cache
+

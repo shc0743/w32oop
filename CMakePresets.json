@@ -1,0 +1,32 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "vs2026-x64",
+      "displayName": "Visual Studio 2026 x64 (static library)",
+      "description": "Generate a Visual Studio 2026 solution for the static w32oop library and the examples.",
+      "generator": "Visual Studio 18 2026",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/vs2026-x64"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "vs2026-x64-release",
+      "displayName": "Release",
+      "configurePreset": "vs2026-x64",
+      "configuration": "Release"
+    },
+    {
+      "name": "vs2026-x64-debug",
+      "displayName": "Debug",
+      "configurePreset": "vs2026-x64",
+      "configuration": "Debug"
+    }
+  ]
+}
