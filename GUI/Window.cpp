@@ -608,7 +608,13 @@ LRESULT Window::_MyWndProc(UINT msg, WPARAM wParam, LPARAM lParam) {
 			if (lParam == 0) {
 				// “菜单”或者“加速器”（也就是快捷键）消息
 				auto id = lo;
-				return dispatchMessageToWindowAndGetResult(WM_MENU_CHECKED, id, 0);
+				EventData data(hwnd, WM_MENU_CHECKED, id, 0, this);
+				data.isNotification = false;
+				data.bubble = false;
+				data.isTrusted = true;
+				dispatchEventForWindow(data);
+				if (data.defaultPrevented()) return data.result;
+				return dispatchMessageToWindowAndGetResult(msg, wParam, lParam);
 			}
 			// 来自控件的通知代码。
 			// 此时消息实际上并不是我们的窗口，而是控件的窗口。
