@@ -139,19 +139,19 @@ protected:
 	};
 	class HotKeyProcData {
 	public:
-		function<void()> preventDefault;
+		std::function<void()> preventDefault;
 		WPARAM wParam = 0;
 		LPARAM lParam = 0;
 		PKBDLLHOOKSTRUCT pKbdStruct = nullptr;
 		Window* source = nullptr;
 	};
 private:
-	static unordered_map<HWND, Window*> managed; // Internal -- DO NOT access it
+	static std::unordered_map<HWND, Window*> managed; // Internal -- DO NOT access it
 	static std::recursive_mutex managed_lock;
-	static recursive_mutex default_font_mutex;
+	static std::recursive_mutex default_font_mutex;
 	static HFONT default_font;
 	static std::array<long long, Option_Count> global_options;
-	static map<HotKeyOptions, function<void(HotKeyProcData&)>> hotkey_handlers;
+	static std::map<HotKeyOptions, std::function<void(HotKeyProcData&)>> hotkey_handlers;
 	static std::recursive_mutex hotkey_handlers_mutex;
 
 protected:
@@ -173,7 +173,7 @@ public:
 	}
 
 public:
-	virtual const wstring get_class_name() const;
+	virtual const std::wstring get_class_name() const;
 
 protected:
 	virtual HICON get_window_icon() {
@@ -195,11 +195,11 @@ protected:
 
 public:
 	static void set_default_font(HFONT font);
-	static void set_default_font(wstring font_name = L"Consolas");
+	static void set_default_font(std::wstring font_name = L"Consolas");
 	static void set_accelerator(HACCEL accelerator);
 
 private:
-	wstring class_name;
+	std::wstring class_name;
 	virtual void register_class_if_needed();
 	DWORD _owner = 0;
 
@@ -216,7 +216,7 @@ protected:
 
 	class setup_info_class {
 	public:
-		wstring title;
+		std::wstring title;
 		int width = 0, height = 0, x = 0, y = 0;
 		LONG style = WS_OVERLAPPED, styleEx = 0; 
 		HMENU hMenu = 0;
@@ -307,7 +307,7 @@ public:
 		validate_hwnd();
 		HWND parent = GetParent(hwnd);
 		if (!parent) throw window_has_no_parent_exception();
-		lock_guard gg(managed_lock);
+		std::lock_guard gg(managed_lock);
 		if (managed.contains(parent)) return *(managed.at(parent));
 		throw window_parent_not_managed_exception();
 	}
@@ -315,7 +315,7 @@ public:
 		validate_hwnd();
 		HWND parent = GetParent(hwnd);
 		if (!parent) throw window_has_no_parent_exception();
-		lock_guard gg(managed_lock);
+		std::lock_guard gg(managed_lock);
 		if (managed.contains(parent)) return *(managed.at(parent));
 		throw window_parent_not_managed_exception();
 	}
@@ -429,7 +429,7 @@ public:
 
 	virtual HMENU sysmenu() const;
 
-	virtual wstring text() const;
+	virtual std::wstring text() const;
 	virtual void text(const std::wstring& text);
 	virtual void text(const std::string& text);
 
@@ -487,7 +487,7 @@ private:
 
 	LRESULT destroy_handler_internal(WPARAM wParam, LPARAM lParam);
 
-	using __EventRouter = unordered_map<msg_t,
+	using __EventRouter = std::unordered_map<msg_t,
 		std::vector<
 			std::function<void(EventData&)>
 		>
@@ -497,9 +497,9 @@ private:
 
 protected:
 	// 注册事件处理器。处理器的注册与移除必须在创建窗口的同一个线程中进行。
-	virtual void addEventListener(msg_t msg, function<void(EventData&)> handler) final;
+	virtual void addEventListener(msg_t msg, std::function<void(EventData&)> handler) final;
 	// 移除事件处理器。处理器的注册与移除必须在创建窗口的同一个线程中进行。
-	virtual void removeEventListener(msg_t msg, function<void(EventData&)> handler) final;
+	virtual void removeEventListener(msg_t msg, std::function<void(EventData&)> handler) final;
 	// 移除指定消息的所有事件处理器。处理器的注册与移除必须在创建窗口的同一个线程中进行。
 	virtual void removeEventListener(msg_t msg) final;
 
@@ -528,7 +528,7 @@ private:
 		HHOOK hHook = NULL;
 		DWORD thread_id = 0;
 	};
-	static atomic<size_t> hotkey_global_count;
+	static std::atomic<std::size_t> hotkey_global_count;
 	static bool hotkey_handler_contains(bool ctrl, bool shift, bool alt, int vk_code, HotKeyOptions::Scope scope, Window* source = nullptr);
 	static LRESULT __stdcall handlekb(
 		int vk, bool ctrl, bool alt, bool shift,
@@ -566,7 +566,7 @@ protected:
 	virtual void register_hot_key(
 		bool ctrl, bool alt, bool shift,
 		int vk_code,
-		function<void(HotKeyProcData&)> callback,
+		std::function<void(HotKeyProcData&)> callback,
 		HotKeyOptions::Scope scope = HotKeyOptions::Scope::Thread
 	) final;
 	virtual void remove_hot_key(

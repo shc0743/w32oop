@@ -1,6 +1,7 @@
 ﻿#include "HttpResponse.hpp"
 #include "../Utility/RAII.hpp"
 #include "../Utility/StringUtil/encodings.hpp"
+using namespace std;
 using namespace w32oop;
 using namespace w32oop::network;
 

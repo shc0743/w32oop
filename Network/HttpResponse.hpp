@@ -31,7 +31,7 @@ namespace w32oop::network {
 		const std::vector<uint8_t>& data() const { return m_data; }
 		std::vector<uint8_t>& arrayBuffer() { return m_data; }
 		const std::vector<uint8_t>& arrayBuffer() const { return m_data; }
-		wstring text() const;
+		std::wstring text() const;
 
 		std::shared_ptr<HttpBody> clone() const override {
 			return std::make_shared<HttpMemoryBody>(m_data); // 这里调用拷贝构造函数
@@ -52,7 +52,7 @@ namespace w32oop::network {
 	// See also https://developer.mozilla.org/docs/Web/API/Response/Response
 	struct HttpResponseInitOptions {
 		DWORD status = 200; // 咱也不知道微软咋想的。。总之 32 位的数字
-		wstring statusText = L"OK";
+		std::wstring statusText = L"OK";
 		HttpHeaders headers;
 	};
 	class HttpResponse : public def::w32NetworkObject {
@@ -71,11 +71,11 @@ namespace w32oop::network {
 		HttpMemoryBody& asMemoryBody() { return dynamic_cast<HttpMemoryBody&>(*m_body); }
 		HttpFileBody& asFileBody() { return dynamic_cast<HttpFileBody&>(*m_body); }
 		DWORD status() const { return m_initdata.status; }
-		wstring statusText() const { return m_initdata.statusText; }
+		std::wstring statusText() const { return m_initdata.statusText; }
 		HttpHeaders& headers() { return m_initdata.headers; }
 		const HttpHeaders& headers() const { return m_initdata.headers; }
 		bool ok() const { return m_initdata.status >= 200 && m_initdata.status < 300; }
-		wstring text() const { return dynamic_cast<HttpMemoryBody&>(*m_body).text(); }
+		std::wstring text() const { return dynamic_cast<HttpMemoryBody&>(*m_body).text(); }
 	};
 
 };

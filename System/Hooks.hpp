@@ -38,7 +38,7 @@ namespace w32oop::system {
 	class Hook : public w32HookObject {
 	protected:
 		w32HookHandle hHook;
-		using HookProcInfo = struct { HOOKPROC ptrCallback; uint32_t ptrCallbackId; };
+		using HookProcInfo = struct { HOOKPROC ptrCallback; std::uint32_t ptrCallbackId; };
 		HookProcInfo my_procedure{};
 		
 	public:

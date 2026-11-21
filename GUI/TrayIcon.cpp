@@ -1,4 +1,5 @@
 ﻿#include "./TrayIcon.hpp"
+using namespace std;
 
 UINT w32oop::ui::TrayIcon::WM_TaskbarCreated;
 

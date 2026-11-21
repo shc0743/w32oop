@@ -37,9 +37,9 @@ namespace w32oop::system {
 	class Service : public w32ServiceObject {
 		w32ServiceHandle hService;
 	public:
-		Service(w32ServiceHandle&& hService) : hService(move(hService)) {
+		Service(w32ServiceHandle&& hService) : hService(std::move(hService)) {
 		};
-		Service(Service&& src) noexcept : hService(move(src.hService)) {
+		Service(Service&& src) noexcept : hService(std::move(src.hService)) {
 			src.hService = nullptr;
 		}
 		~Service() = default;
@@ -70,9 +70,9 @@ namespace w32oop::system {
 			: scm(OpenSCManagerW(nullptr, nullptr, dwDesiredAccess))
 		{};
 	public:
-		Service get(wstring name, DWORD access = SERVICE_ALL_ACCESS);
-		Service create(wstring name, wstring binPath, DWORD startup_type,
-			wstring displayName = L"", wstring description = L"",
+		Service get(std::wstring name, DWORD access = SERVICE_ALL_ACCESS);
+		Service create(std::wstring name, std::wstring binPath, DWORD startup_type,
+			std::wstring displayName = L"", std::wstring description = L"",
 			DWORD type = SERVICE_WIN32_OWN_PROCESS);
 	};
 }

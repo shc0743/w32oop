@@ -14,7 +14,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 namespace w32oop::util::memory {
 	w32oop_declare_exception_class(memory_check_failed);
 
-	template<size_t size>
+	template<std::size_t size>
 	class MemoryChecker : public w32Object {
 	public:
 		MemoryChecker() {};
@@ -25,7 +25,7 @@ namespace w32oop::util::memory {
 			return readable(address) && writable(address);
 		}
 
-		unique_ptr<char[]> read(void* address) {
+		std::unique_ptr<char[]> read(void* address) {
 			auto buffer = std::make_unique<char[]>(size);
 			SIZE_T nRead = 0;
 			if (!ReadProcessMemory(GetCurrentProcess(), address, buffer.get(), size, &nRead) || nRead != size) {

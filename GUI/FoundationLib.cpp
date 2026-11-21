@@ -1,4 +1,5 @@
 ﻿#include "FoundationLib.hpp"
+using namespace std;
 using namespace w32oop;
 std::atomic<unsigned long long> w32oop::ui::BaseSystemWindow::ctlid_generator{0x100};
 // IsDialogMessage might handle Esc and so differently so we need to use larger Control ID to avoid conflict

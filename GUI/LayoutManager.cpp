@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 
+using namespace std;
 using namespace w32oop;
 using namespace w32oop::util;
 using namespace w32oop::ui;

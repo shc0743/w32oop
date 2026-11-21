@@ -51,7 +51,7 @@ namespace w32oop::def {
 		}
 
 	public:
-		set<HBITMAP> bmps; // 存储位图句柄
+		std::set<HBITMAP> bmps; // 存储位图句柄
 	};
 }
 
@@ -61,18 +61,18 @@ namespace w32oop::ui {
 	protected:
 		UINT m_type;
 		UINT m_id; // 注：这里的 ID 字段仅仅要求唯一就行了，只起识别作用，不需要手动处理
-		wstring m_text;
+		std::wstring m_text;
 		bool is_checked = false;
 		bool is_default_ = false;
 		HICON hIcon = NULL;
-		vector<MenuItem> children;
+		std::vector<MenuItem> children;
 
 	public:
 		MenuItem(UINT type = MF_STRING, UINT id = 0) : m_type(type), m_id(id) {}
-		MenuItem(const wstring& text, UINT id) : m_text(text), m_type(MF_STRING), m_id(id) {}
-		MenuItem(const wstring& text, UINT id, function<void()> onClickHandler) :
+		MenuItem(const std::wstring& text, UINT id) : m_text(text), m_type(MF_STRING), m_id(id) {}
+		MenuItem(const std::wstring& text, UINT id, std::function<void()> onClickHandler) :
 			m_text(text), m_type(MF_STRING), m_id(id), onClickHandler(onClickHandler) {}
-		MenuItem(const wstring& text, vector<MenuItem> children) :
+		MenuItem(const std::wstring& text, std::vector<MenuItem> children) :
 			m_text(text), m_type(MF_STRING | MF_POPUP), m_id(0), children(children) {}
 		static MenuItem separator() {
 			return MenuItem(MF_SEPARATOR); // 创建分隔符菜单项
@@ -80,7 +80,7 @@ namespace w32oop::ui {
 		static MenuItem container() {
 			return MenuItem(MF_POPUP); // 创建容器菜单项
 		}
-		explicit MenuItem(vector<MenuItem> items) {
+		explicit MenuItem(std::vector<MenuItem> items) {
 			m_type = MF_POPUP; // 设置为容器类型
 			m_id = 0; // 容器菜单项没有ID
 			children = std::move(items); // 移动子菜单项
@@ -102,10 +102,10 @@ namespace w32oop::ui {
 		void type(UINT type) {
 			m_type = type;
 		}
-		const wstring& text() const {
+		const std::wstring& text() const {
 			return m_text; // 返回菜单项文本
 		}
-		void text(const wstring& newText) {
+		void text(const std::wstring& newText) {
 			m_text = newText; // 设置菜单项文本
 		}
 		HICON icon() const {
@@ -142,21 +142,21 @@ namespace w32oop::ui {
 		}
 
 	protected:
-		function<void()> onClickHandler; // 点击事件处理器
+		std::function<void()> onClickHandler; // 点击事件处理器
 	public:
-		function<void()> onClick() const {
+		std::function<void()> onClick() const {
 			return onClickHandler; // 获取点击事件处理器
 		}
-		void onClick(function<void()> handler) {
+		void onClick(std::function<void()> handler) {
 			onClickHandler = handler; // 设置点击事件处理器
 		}
 
 	public:
 		// 子菜单相关功能
-		const vector<MenuItem>& get_children() const {
+		const std::vector<MenuItem>& get_children() const {
 			return children;
 		}
-		vector<MenuItem>& get_children() {
+		std::vector<MenuItem>& get_children() {
 			return children;
 		}
 		inline bool is_container() const {
@@ -175,7 +175,7 @@ namespace w32oop::ui {
 			children.push_back(std::move(item)); // 添加子菜单项
 			return *this; // 返回自身以支持链式调用
 		}
-		MenuItem& append(const wstring& text, UINT id) {
+		MenuItem& append(const std::wstring& text, UINT id) {
 			return append(MenuItem(text, id)); // 添加文本菜单项
 		}
 		// 移除
@@ -191,7 +191,7 @@ namespace w32oop::ui {
 			}
 			children.erase(std::remove(children.begin(), children.end(), item), children.end()); // 移除指定子菜单项
 		}
-		void remove(size_t index) {
+		void remove(std::size_t index) {
 			if (!is_container()) {
 				throw exceptions::invalid_menu_state_exception("Cannot remove from a non-container MenuItem");
 			}
@@ -205,12 +205,12 @@ namespace w32oop::ui {
 	};
 	class Menu : public w32MenuObject {
 	protected:
-		vector<MenuItem> children;
+		std::vector<MenuItem> children;
 
 	public:
 		Menu() {}
 		Menu(MenuItem item) : children{ std::move(item) } {} // 使用单个 MenuItem 构造菜单
-		Menu(vector<MenuItem> items) : children(std::move(items)) {} // 使用移动语义构造菜单
+		Menu(std::vector<MenuItem> items) : children(std::move(items)) {} // 使用移动语义构造菜单
 #if 0
 		// 从资源中构建菜单。动态解析资源文件中的菜单结构并转换为 MenuItem 对象。
 		static Menu build_from_resource(HMENU hMenu);
@@ -218,8 +218,8 @@ namespace w32oop::ui {
 #endif
 
 	public:
-		void set_default(size_t index) {
-			for (size_t i = 0; i < children.size(); ++i) children.at(i).set_default(i == index);
+		void set_default(std::size_t index) {
+			for (std::size_t i = 0; i < children.size(); ++i) children.at(i).set_default(i == index);
 		}
 		// 核心实现，动态构造菜单
 		w32MenuHandleEx build(HMENU(WINAPI* builder)(VOID) = CreatePopupMenu) const;
@@ -249,18 +249,18 @@ namespace w32oop::ui {
 		static void _build_menutree(HMENU hMenu, const MenuItem& item, w32MenuHandleEx& owner);
 
 	public:
-		vector<MenuItem>& get_children() {
+		std::vector<MenuItem>& get_children() {
 			return children; // 获取子菜单项
 		}
-		const vector<MenuItem>& get_children() const {
+		const std::vector<MenuItem>& get_children() const {
 			return children; // 获取子菜单项
 		}
 		
 	protected:
-		std::function<bool(const exception&)> exc_handler;
+		std::function<bool(const std::exception&)> exc_handler;
 	public:
 		// 异常处理器返回true表示异常已被处理，返回false则重新向上抛
-		void set_exception_handler(std::function<bool(const exception&)> handler) {
+		void set_exception_handler(std::function<bool(const std::exception&)> handler) {
 			exc_handler = handler; // 设置异常处理器
 		}
 	};

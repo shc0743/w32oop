@@ -2,6 +2,7 @@
 #include <array>
 #include <utility>
 #include "../Utility/Memory.hpp"
+using namespace std;
 
 
 LRESULT w32oop::system::Hook::cb(int nCode, WPARAM wParam, LPARAM lParam, long long userdata) {

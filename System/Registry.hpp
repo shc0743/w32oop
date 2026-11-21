@@ -113,13 +113,13 @@ namespace w32oop::system {
 
 	public:
 		RegistryKey(HKEY key = HKEY_LOCAL_MACHINE) : hKey(key) {}
-		RegistryKey(HKEY key, wstring path, REGSAM access = KEY_ALL_ACCESS) {
+		RegistryKey(HKEY key, std::wstring path, REGSAM access = KEY_ALL_ACCESS) {
 			HKEY _ = 0;
 			(void)RegOpenKeyExW(key, path.c_str(), 0, access, &_);
 			hKey = _;
 			hKey.validate();
 		}
-		RegistryKey(const RegistryKey& key, wstring path, REGSAM access = KEY_ALL_ACCESS) {
+		RegistryKey(const RegistryKey& key, std::wstring path, REGSAM access = KEY_ALL_ACCESS) {
 			HKEY _ = 0;
 			(void)RegOpenKeyExW(key.hKey, path.c_str(), 0, access, &_);
 			hKey = _;
@@ -141,19 +141,19 @@ namespace w32oop::system {
 
 	public:
 		// 创建子健
-		RegistryKey create(wstring subkeyName, REGSAM access = KEY_ALL_ACCESS, bool bFailIfExists = false);
+		RegistryKey create(std::wstring subkeyName, REGSAM access = KEY_ALL_ACCESS, bool bFailIfExists = false);
 		// 打开子健
-		RegistryKey open(wstring subkeyName, REGSAM access = KEY_ALL_ACCESS);
+		RegistryKey open(std::wstring subkeyName, REGSAM access = KEY_ALL_ACCESS);
 		// 获取特定键的值，valueName可以为空字符串，表示获取(默认)键的值
-		RegistryValue get(wstring valueName, bool bNoExpand = false) const;
+		RegistryValue get(std::wstring valueName, bool bNoExpand = false) const;
 		// 直接获取特定键的值，valueName可以为空字符串，表示获取(默认)键的值
 		template<typename T>
-		T get_value(wstring valueName, bool bNoExpand = false) const {
+		T get_value(std::wstring valueName, bool bNoExpand = false) const {
 			return get(valueName, bNoExpand).get<T>();
 		}
 		// 获取特定键的值，valueName可以为空字符串，表示获取(默认)键的值
 		template<typename T>
-		std::optional<T> get_value_if(wstring valueName, bool bNoExpand = false) const {
+		std::optional<T> get_value_if(std::wstring valueName, bool bNoExpand = false) const {
 			try {
 				RegistryValue value = get(valueName, bNoExpand);
 				if (auto p = value.get_if<T>()) {
@@ -165,7 +165,7 @@ namespace w32oop::system {
 		}
 		// 获取特定键的值(带fallback)，valueName可以为空字符串，表示获取(默认)键的值，不会抛出异常
 		template<typename T>
-		T get_value_or(wstring valueName, T fallback, bool bNoExpand = false) const noexcept {
+		T get_value_or(std::wstring valueName, T fallback, bool bNoExpand = false) const noexcept {
 			try {
 				RegistryValue value = get(valueName, bNoExpand);
 				if (auto p = value.get_if<T>()) {
@@ -176,21 +176,21 @@ namespace w32oop::system {
 			return fallback;
 		}
 		// 设置特定键的值
-		void set(wstring valueName, const RegistryValue& value);
+		void set(std::wstring valueName, const RegistryValue& value);
 		// 设置(默认)键的值
 		inline void set(const RegistryValue& value) {
 			set(L"", value);
 		}
-		bool delete_key(wstring subkeyName, REGSAM samDesired = KEY_WOW64_64KEY);
-		bool delete_value(wstring valueName);
-		bool delete_key_value(wstring subkeyName, wstring valueName);
-		bool exists(wstring subkeyName) const;
-		bool exists_value(wstring valueName) const;
+		bool delete_key(std::wstring subkeyName, REGSAM samDesired = KEY_WOW64_64KEY);
+		bool delete_value(std::wstring valueName);
+		bool delete_key_value(std::wstring subkeyName, std::wstring valueName);
+		bool exists(std::wstring subkeyName) const;
+		bool exists_value(std::wstring valueName) const;
 		template<typename T = std::vector<std::wstring>>
 		T keys() const {
 			T keyNames{};
 			DWORD index = 0;
-			constexpr size_t maxKeyNameLength = 2048; // 最大键名长度
+			constexpr std::size_t maxKeyNameLength = 2048; // 最大键名长度
 			wchar_t keyName[maxKeyNameLength]{};
 			DWORD keyNameLength = (DWORD)maxKeyNameLength;
 

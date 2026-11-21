@@ -16,7 +16,7 @@ namespace w32oop::util {
 	class ErrorChecker : public w32Object {
 	protected:
 		DWORD code;
-		wstring msg;
+		std::wstring msg;
 		HMODULE hExtraModule;
 
 	public:
@@ -64,10 +64,10 @@ namespace w32oop::util {
 			LocalFree((HLOCAL)LocalAddress);
 			SetLastError(code);
 		}
-		wstring raw_message() const noexcept {
+		std::wstring raw_message() const noexcept {
 			return msg;
 		}
-		wstring message() const noexcept {
+		std::wstring message() const noexcept {
 			return std::format(L"Error {}: {}", code, msg);
 		}
 	};

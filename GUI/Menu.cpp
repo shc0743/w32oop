@@ -1,6 +1,7 @@
 ﻿#include "./Menu.hpp"
 #include "./Window.hpp"
 #include "../Utility/RAII.hpp"
+using namespace std;
 using namespace w32oop;
 using namespace w32oop::ui;
 

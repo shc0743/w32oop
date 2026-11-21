@@ -28,7 +28,6 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 
 namespace w32oop {
-	using namespace std;
 	
 	namespace core {
 		// The w32Object class is the base class for all w32oop objects.
@@ -50,10 +49,10 @@ namespace w32oop {
 	}
 
 	namespace exceptions {
-		class w32oop_exception : public runtime_error {
+		class w32oop_exception : public std::runtime_error {
 		public:
-			w32oop_exception(std::string d) : runtime_error(d) {}
-			w32oop_exception() : runtime_error(("Exception: " "w32oop")) {}
+			w32oop_exception(std::string d) : std::runtime_error(d) {}
+			w32oop_exception() : std::runtime_error(("Exception: " "w32oop")) {}
 		};
 
 		class win32_exception : public w32oop_exception {

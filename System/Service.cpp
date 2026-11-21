@@ -1,4 +1,5 @@
 ﻿#include "./Service.hpp"
+using namespace std;
 using namespace w32oop;
 using namespace w32oop::system;
 

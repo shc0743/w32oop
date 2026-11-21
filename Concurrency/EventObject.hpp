@@ -33,12 +33,12 @@ namespace w32oop::concurrency {
         }
 
         // move constructor
-        EventObject(EventObject&& other) noexcept : hEvent(move(other.hEvent)) {}
+        EventObject(EventObject&& other) noexcept : hEvent(std::move(other.hEvent)) {}
 
         // move assignment operator
         EventObject& operator=(EventObject&& other) noexcept {
             if (this != &other) {
-                hEvent = move(other.hEvent);
+                hEvent = std::move(other.hEvent);
             }
             return *this;
         }

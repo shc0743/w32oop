@@ -2,6 +2,7 @@
 #include "LayoutManager.hpp"
 #include "../Utility/StringUtil/converts.hpp"
 #include "../System/Hooks.hpp"
+using namespace std;
 using namespace w32oop;
 using namespace w32oop::util;
 using namespace w32oop::ui;

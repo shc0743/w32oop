@@ -13,29 +13,29 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 
 namespace w32oop::util::str::converts {
-	inline wstring str_wstr(const string& str) {
-		if (str.empty()) return wstring();
-		if (str.size() > static_cast<size_t>(INT_MAX)) return wstring();
+	inline std::wstring str_wstr(const std::string& str) {
+		if (str.empty()) return std::wstring();
+		if (str.size() > static_cast<std::size_t>(INT_MAX)) return std::wstring();
 
 		const int n = static_cast<int>(str.size());
 		int len = MultiByteToWideChar(CP_ACP, 0, str.c_str(), n, nullptr, 0);
-		if (len <= 0) return wstring();
+		if (len <= 0) return std::wstring();
 
-		wstring result(static_cast<size_t>(len), L'\0');
+		std::wstring result(static_cast<std::size_t>(len), L'\0');
 		MultiByteToWideChar(CP_ACP, 0, str.c_str(), n, result.data(), len);
 		return result;
 	}
 
-	inline string wstr_str(const wstring& wstr) {
-		if (wstr.empty()) return string();
-		if (wstr.size() > static_cast<size_t>(INT_MAX)) return string();
+	inline std::string wstr_str(const std::wstring& wstr) {
+		if (wstr.empty()) return std::string();
+		if (wstr.size() > static_cast<std::size_t>(INT_MAX)) return std::string();
 
 		const int n = static_cast<int>(wstr.size());
 		int len = WideCharToMultiByte(CP_ACP, 0, wstr.c_str(), n,
 			nullptr, 0, nullptr, nullptr);
-		if (len <= 0) return string();
+		if (len <= 0) return std::string();
 
-		string result(static_cast<size_t>(len), '\0');
+		std::string result(static_cast<std::size_t>(len), '\0');
 		WideCharToMultiByte(CP_ACP, 0, wstr.c_str(), n,
 			result.data(), len, nullptr, nullptr);
 		return result;

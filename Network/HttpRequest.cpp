@@ -1,6 +1,7 @@
 ﻿#include "HttpRequest.hpp"
 #include "../Utility/StringUtil/operations.hpp"
 #include "../Utility/RAII.hpp"
+using namespace std;
 using namespace w32oop;
 using namespace w32oop::network;
 

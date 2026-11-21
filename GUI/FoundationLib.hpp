@@ -94,7 +94,7 @@ protected:
 	virtual LRESULT default_handler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) override;
 
 public:
-	using CEventHandler = function<void(EventData&)>;
+	using CEventHandler = std::function<void(EventData&)>;
 	virtual BaseSystemWindow& on(msg_t event, CEventHandler handler) {
 		addEventListener((::w32oop::ui::WINDOW_NOTIFICATION_CODES)+(event),
 			[this, handler](EventData& data) {
@@ -138,7 +138,7 @@ public:
 	}
 	~Static() override {}
 protected:
-	const wstring get_class_name() const override {
+	const std::wstring get_class_name() const override {
 		return L"Static";
 	}
 protected:
@@ -231,15 +231,15 @@ public:
 		validate_hwnd();
 		Edit_SetPasswordChar(hwnd, ch);
 	}
-	size_t line_count() {
+	std::size_t line_count() {
 		validate_hwnd();
 		return Edit_GetLineCount(hwnd);
 	}
-	wstring get_line(int line) {
+	std::wstring get_line(int line) {
 		validate_hwnd();
 		wchar_t* buffer = new wchar_t[16384];
 		Edit_GetLine(hwnd, line, buffer, 16384);
-		wstring text(buffer);
+		std::wstring text(buffer);
 		delete[] buffer;
 		return text;
 	}
@@ -253,7 +253,7 @@ public:
 		is_readonly = readonly;
 	}
 protected:
-	const wstring get_class_name() const override {
+	const std::wstring get_class_name() const override {
 		return L"Edit";
 	}
 private:
@@ -297,7 +297,7 @@ public:
 	}
 	HCURSOR cursor = NULL;
 protected:
-	const wstring get_class_name() const override {
+	const std::wstring get_class_name() const override {
 		return L"Button";
 	}
 private:
@@ -387,23 +387,23 @@ public:
 	inline void simple(bool isSimple) {
 		send(SB_SIMPLE, isSimple ? TRUE : FALSE, 0);
 	}
-	wstring text() const override {
+	std::wstring text() const override {
 		return get_text(0);
 	}
-	wstring get_text(int part = 0) const;
+	std::wstring get_text(int part = 0) const;
 	// Note: To operate a non-simple status bar, 
-	// please use `set_text(int index, const wstring& t)` instead.
-	void text(const wstring& t) override {
+	// please use `set_text(int index, const std::wstring& t)` instead.
+	void text(const std::wstring& t) override {
 		return set_text(SB_SIMPLEID, t);
 	}
-	void set_text(int index, const wstring& t) {
+	void set_text(int index, const std::wstring& t) {
 		send(SB_SETTEXT, LOBYTE(index), (LPARAM)t.c_str());
 	}
 	void set_parts(int count, int* widths) {
 		send(SB_SETPARTS, count, (LPARAM)widths);
 	}
 protected:
-	const wstring get_class_name() const override {
+	const std::wstring get_class_name() const override {
 		return STATUSCLASSNAMEW;
 	}
 protected:
@@ -431,7 +431,7 @@ public:
 	}
 	~TrackBar() override {}
 protected:
-	const wstring get_class_name() const override {
+	const std::wstring get_class_name() const override {
 		return TRACKBAR_CLASSW;
 	}
 protected:
@@ -462,14 +462,14 @@ public:
 		return (int)send(TBM_GETPOS, 0, 0);
 	}
 protected:
-	function<void(EventData&)> callback;
+	std::function<void(EventData&)> callback;
 	void onThumbPosChanging(EventData& ev) {
 		if (!callback) return;
 		callback(ev);
 		if (ev.defaultPrevented()) ev.returnValue(TRUE);
 	}
 public:
-	void onbeforechange(function<void(EventData&)> callback2) {
+	void onbeforechange(std::function<void(EventData&)> callback2) {
 		this->callback = callback2;
 	}
 };
@@ -486,7 +486,7 @@ concept InputDialog_ValueTypes = std::same_as<T, std::wstring> ||
 // One-time use. To reuse please create new instance
 class InputDialog : public Window {
 public:
-	InputDialog(wstring title = L"Input", int width = 320, int height = 145) :
+	InputDialog(std::wstring title = L"Input", int width = 320, int height = 145) :
 		Window(title, (int)(width * w32oop::ui::internal::system_dpi_scale_factor() + 0.5f),
 			(int)(height * w32oop::ui::internal::system_dpi_scale_factor() + 0.5f), 0, 0, WS_POPUP | WS_SYSMENU | WS_SIZEBOX),
 		m_scale((float)w32oop::ui::internal::system_dpi_scale_factor()),
@@ -539,7 +539,7 @@ protected:
 
 	float m_scale = 1.0f;
 	int _logical_width = 320, _logical_height = 145;
-	wstring prompt;
+	std::wstring prompt;
 	Edit editBox;
 	Button accept, reject;
 	HFONT promptFont = NULL;
@@ -547,7 +547,7 @@ protected:
 	bool isActive = true;
 	bool isCreated = false;
 	bool _usePassmode = false;
-	wstring textBuffer;
+	std::wstring textBuffer;
 
 	void onCreated() override;
 	void onDestroy() override;
@@ -572,7 +572,7 @@ protected:
 		WINDOW_add_handler(WM_CLOSE, [this](EventData&) { textBuffer = editBox.text(); });
 	}
 
-	inline bool hittest_closeButton(int32_t x, int32_t y, int32_t w, int32_t h) {
+	inline bool hittest_closeButton(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h) {
 		UNREFERENCED_PARAMETER(h);
 		return (x >= w - s(40) && x <= w) && (y >= 0 && y < s(40));
 	}
@@ -594,7 +594,7 @@ public:
 		editBox.focus();
 		run(this);
 
-		if (rejected) return nullopt;
+		if (rejected) return std::nullopt;
 		if constexpr (std::same_as<value_type, std::wstring>) return getText();
 		else {
 			if (getText().starts_with(L"0x") || getText().starts_with(L"0X"))
@@ -602,14 +602,14 @@ public:
 			return static_cast<value_type>(wcstoll(getText().c_str(), NULL, 10));
 		}
 	}
-	wstring getPrompt() const { return prompt; }
-	void setPrompt(wstring new_value) { prompt = new_value; update(); }
-	wstring getText() const { return textBuffer; }
-	void setText(wstring text) { editBox.text(text); }
+	std::wstring getPrompt() const { return prompt; }
+	void setPrompt(std::wstring new_value) { prompt = new_value; update(); }
+	std::wstring getText() const { return textBuffer; }
+	void setText(std::wstring text) { editBox.text(text); }
 	void setMultiple(bool multiple = true);
-	void setAcceptButtonText(wstring t) { accept.text(t); }
-	void setRejectButtonText(wstring t) { reject.text(t); }
-	void setButtonsText(wstring a, wstring b) {
+	void setAcceptButtonText(std::wstring t) { accept.text(t); }
+	void setRejectButtonText(std::wstring t) { reject.text(t); }
+	void setButtonsText(std::wstring a, std::wstring b) {
 		setAcceptButtonText(a);
 		setRejectButtonText(b);
 	}

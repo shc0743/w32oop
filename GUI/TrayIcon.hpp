@@ -56,13 +56,13 @@ namespace w32oop::ui {
 			return _added;
 		}
 
-		void addEventListener(UINT message, function<void(EventData&)> handler) {
+		void addEventListener(UINT message, std::function<void(EventData&)> handler) {
 			win.addEventListener(message, handler);
 		}
 		void removeEventListener(UINT message) {
 			win.removeEventListener(message);
 		}
-		void removeEventListener(UINT message, function<void(EventData&)> handler) {
+		void removeEventListener(UINT message, std::function<void(EventData&)> handler) {
 			win.removeEventListener(message, handler);
 		}
 		virtual void setIcon(HICON icon) {
@@ -102,33 +102,33 @@ namespace w32oop::ui {
 			Shell_NotifyIcon(NIM_MODIFY, &nid); // 更新托盘图标
 		}
 	protected:
-		function<void(EventData&)> onClickHandler = nullptr; // 点击事件处理器
-		function<void(EventData&)> onDblclickHandler = nullptr; // 双击事件处理器
-		function<void(EventData&)> onRightclickHandler = nullptr; // 右键事件处理器
-		function<void(EventData&)> onBalloonClickHandler = nullptr; // 通知点击事件处理器
+		std::function<void(EventData&)> onClickHandler = nullptr; // 点击事件处理器
+		std::function<void(EventData&)> onDblclickHandler = nullptr; // 双击事件处理器
+		std::function<void(EventData&)> onRightclickHandler = nullptr; // 右键事件处理器
+		std::function<void(EventData&)> onBalloonClickHandler = nullptr; // 通知点击事件处理器
 	public:
-		virtual function<void(EventData&)>& onClick() {
+		virtual std::function<void(EventData&)>& onClick() {
 			return onClickHandler; // 获取点击事件处理器
 		}
-		virtual void onClick(function<void(EventData&)> handler) {
+		virtual void onClick(std::function<void(EventData&)> handler) {
 			onClickHandler = handler; // 设置点击事件处理器
 		}
-		virtual function<void(EventData&)>& onDblclick() {
+		virtual std::function<void(EventData&)>& onDblclick() {
 			return onDblclickHandler; // 获取双击事件处理器
 		}
-		virtual void onDblclick(function<void(EventData&)> handler) {
+		virtual void onDblclick(std::function<void(EventData&)> handler) {
 			onDblclickHandler = handler; // 设置双击事件处理器
 		}
-		virtual function<void(EventData&)>& onRightclick() {
+		virtual std::function<void(EventData&)>& onRightclick() {
 			return onRightclickHandler; // 获取右键事件处理器
 		}
-		virtual void onRightclick(function<void(EventData&)> handler) {
+		virtual void onRightclick(std::function<void(EventData&)> handler) {
 			onRightclickHandler = handler; // 设置右键事件处理器
 		}
-		virtual function<void(EventData&)>& onBalloonClick() {
+		virtual std::function<void(EventData&)>& onBalloonClick() {
 			return onBalloonClickHandler; // 获取通知点击事件处理器
 		}
-		virtual void onBalloonClick(function<void(EventData&)> handler) {
+		virtual void onBalloonClick(std::function<void(EventData&)> handler) {
 			onBalloonClickHandler = handler; // 设置通知点击事件处理器
 		}
 
