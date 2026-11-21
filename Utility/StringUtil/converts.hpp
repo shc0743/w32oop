@@ -14,31 +14,30 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 namespace w32oop::util::str::converts {
 	inline wstring str_wstr(const string& str) {
-		wstring result;
-		size_t len = MultiByteToWideChar(CP_ACP, 0, str.c_str(),
-			(int)(str.size()), NULL, 0);
-		if (len < 0) return result;
-		wchar_t* buffer = new wchar_t[len + 1];
-		if (buffer == NULL) return result;
-		MultiByteToWideChar(CP_ACP, 0, str.c_str(), (int)(str.size()),
-			buffer, (int)len);
-		buffer[len] = '\0';
-		result.append(buffer);
-		delete[] buffer;
+		if (str.empty()) return wstring();
+		if (str.size() > static_cast<size_t>(INT_MAX)) return wstring();
+
+		const int n = static_cast<int>(str.size());
+		int len = MultiByteToWideChar(CP_ACP, 0, str.c_str(), n, nullptr, 0);
+		if (len <= 0) return wstring();
+
+		wstring result(static_cast<size_t>(len), L'\0');
+		MultiByteToWideChar(CP_ACP, 0, str.c_str(), n, result.data(), len);
 		return result;
 	}
+
 	inline string wstr_str(const wstring& wstr) {
-		string result;
-		size_t len = WideCharToMultiByte(CP_ACP, 0, wstr.c_str(),
-			(int)(wstr.size()), NULL, 0, NULL, NULL);
-		if (len < 0) return result;
-		char* buffer = new char[len + 1];
-		if (buffer == NULL) return result;
-		WideCharToMultiByte(CP_ACP, 0, wstr.c_str(),
-			(int)(wstr.size()), buffer, (int)len, NULL, NULL);
-		buffer[len] = '\0';
-		result.append(buffer);
-		delete[] buffer;
+		if (wstr.empty()) return string();
+		if (wstr.size() > static_cast<size_t>(INT_MAX)) return string();
+
+		const int n = static_cast<int>(wstr.size());
+		int len = WideCharToMultiByte(CP_ACP, 0, wstr.c_str(), n,
+			nullptr, 0, nullptr, nullptr);
+		if (len <= 0) return string();
+
+		string result(static_cast<size_t>(len), '\0');
+		WideCharToMultiByte(CP_ACP, 0, wstr.c_str(), n,
+			result.data(), len, nullptr, nullptr);
 		return result;
 	}
 }

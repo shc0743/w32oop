@@ -83,13 +83,49 @@ void LayoutManager::resize(int x, int y, int w, int h) {
 }
 
 void LayoutManager::doLayout() {
-	if (!owner) return;
+	if (!nested_) {
+		if (!owner) return;
+		bounds_ = owner->client_rect();
+	}
 	if (laying_out_) return;  // stop recursion when nested layouts reference each other
 
 	laying_out_ = true;
-	if (!nested_) bounds_ = owner->client_rect();
 	layout_children();
 	laying_out_ = false;
+}
+
+SIZE LayoutManager::measure(int availableW, int availableH) {
+	if (availableW < 0) availableW = 0;
+	if (availableH < 0) availableH = 0;
+
+	const RECT saved_bounds = bounds_;
+	const bool saved_nested = nested_;
+	const bool saved_laying = laying_out_;
+	const bool saved_measuring = measuring_;
+
+	bounds_ = RECT{ 0, 0, availableW, availableH };
+	nested_ = true;
+	laying_out_ = true;
+	measuring_ = true;
+	try {
+		layout_children();
+	}
+	catch (...) {
+		bounds_ = saved_bounds;
+		nested_ = saved_nested;
+		laying_out_ = saved_laying;
+		measuring_ = saved_measuring;
+		throw;
+	}
+	bounds_ = saved_bounds;
+	nested_ = saved_nested;
+	laying_out_ = saved_laying;
+	measuring_ = saved_measuring;
+
+	SIZE result = last_content_;
+	if (result.cx <= 0) result.cx = (LONG)availableW;
+	if (result.cy <= 0) result.cy = (LONG)availableH;
+	return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -248,7 +284,7 @@ void ConstraintLayout::layout_children() {
 		for (const LayoutRef& node : missing) register_node(node);
 	}
 
-	if (owner->created()) {
+	if (owner && owner->created()) {
 		for (const LayoutRef& node : order) {
 			if (!node.is_window()) continue;
 			if (!node.created() || node.has_parent()) continue;
@@ -310,7 +346,7 @@ void ConstraintLayout::layout_children() {
 			if (p.width > 0) {
 				r.w = (float)p.width;
 			}
-			else if (p.width == MATCH_PARENT) {
+			else if (p.width == MATCH_PARENT || (p.width == WRAP_CONTENT && node.layout())) {
 				r.w = (std::max)(0.0f, PW - p.marginStart - p.marginEnd);
 			}
 			else if (p.width == MATCH_CONSTRAINT && p.start.set && p.end.set) {
@@ -331,7 +367,7 @@ void ConstraintLayout::layout_children() {
 				if (p.height > 0) {
 					r.h = (float)p.height;
 				}
-				else if (p.height == MATCH_PARENT) {
+				else if (p.height == MATCH_PARENT || (p.height == WRAP_CONTENT && node.layout())) {
 					r.h = (std::max)(0.0f, PH - p.marginTop - p.marginBottom);
 				}
 				else if (p.height == MATCH_CONSTRAINT && p.top.set && p.bottom.set) {
@@ -348,7 +384,7 @@ void ConstraintLayout::layout_children() {
 				const float a = edge_of(p.start.target, p.start.targetEdge);
 				const float b = edge_of(p.end.target, p.end.targetEdge);
 				const float free_space = b - a - p.marginEnd - p.marginStart - r.w;
-				r.l = a + p.marginStart + p.biasH * (free_space > 0.0f ? free_space : 0.0f);
+				r.l = a + p.marginStart + p.biasH * free_space;
 			}
 			else if (p.start.set) {
 				r.l = edge_of(p.start.target, p.start.targetEdge) + p.marginStart;
@@ -364,7 +400,7 @@ void ConstraintLayout::layout_children() {
 				const float a = edge_of(p.top.target, p.top.targetEdge);
 				const float b = edge_of(p.bottom.target, p.bottom.targetEdge);
 				const float free_space = b - a - p.marginBottom - p.marginTop - r.h;
-				r.t = a + p.marginTop + p.biasV * (free_space > 0.0f ? free_space : 0.0f);
+				r.t = a + p.marginTop + p.biasV * free_space;
 			}
 			else if (p.top.set) {
 				r.t = edge_of(p.top.target, p.top.targetEdge) + p.marginTop;
@@ -381,6 +417,21 @@ void ConstraintLayout::layout_children() {
 
 		if (!changed) break;
 	}
+
+	float minL = 0.0f, minT = 0.0f, maxR = 0.0f, maxB = 0.0f;
+	for (const LayoutRef& node : order) {
+		const ResolvedRect& r = result[node];
+		const float l = r.l - PX;
+		const float t = r.t - PY;
+		minL = (std::min)(minL, l);
+		minT = (std::min)(minT, t);
+		maxR = (std::max)(maxR, l + r.w);
+		maxB = (std::max)(maxB, t + r.h);
+	}
+	last_content_ = SIZE{
+		(LONG)std::lround((std::max)(0.0f, maxR - minL)),
+		(LONG)std::lround((std::max)(0.0f, maxB - minT))
+	};
 
 	if (layout_debug_mode()) {
 		for (const LayoutRef& node : order) {
@@ -501,11 +552,11 @@ void LinearLayout::validate() const {
 		if (p.width < MATCH_PARENT)  W(L"width below MATCH_PARENT, treated as WRAP_CONTENT");
 		if (p.height < MATCH_PARENT) W(L"height below MATCH_PARENT, treated as WRAP_CONTENT");
 		if (p.weight < 0.0f)         W(L"negative weight ignored");
-		if (p.width != MATCH_PARENT && p.width != WRAP_CONTENT && p.width < 1) {
-			W(L"width must be positive, MATCH_PARENT or WRAP_CONTENT");
+		if (p.width != MATCH_PARENT && p.width != WRAP_CONTENT && p.width < 0) {
+			W(L"width must be 0, positive, MATCH_PARENT or WRAP_CONTENT");
 		}
-		if (p.height != MATCH_PARENT && p.height != WRAP_CONTENT && p.height < 1) {
-			W(L"height must be positive, MATCH_PARENT or WRAP_CONTENT");
+		if (p.height != MATCH_PARENT && p.height != WRAP_CONTENT && p.height < 0) {
+			W(L"height must be 0, positive, MATCH_PARENT or WRAP_CONTENT");
 		}
 	}
 }
@@ -532,7 +583,7 @@ void LinearLayout::collect_intrinsics() {
 void LinearLayout::layout_children() {
 	if (order.empty()) return;
 
-	if (owner->created()) {
+	if (owner && owner->created()) {
 		for (const LayoutRef& node : order) {
 			if (!node.is_window()) continue;
 			if (!node.created() || node.has_parent()) continue;
@@ -558,6 +609,7 @@ void LinearLayout::layout_children() {
 	struct Resolved {
 		float l = 0.0f, t = 0.0f, w = 0.0f, h = 0.0f;
 		float main = 0.0f;
+		float cross = 0.0f;
 	};
 
 	std::unordered_map<LayoutRef, Resolved, LayoutRef::Hash> result;
@@ -573,23 +625,76 @@ void LinearLayout::layout_children() {
 
 		const float mStart = vertical ? p.marginTop : p.marginStart;
 		const float mEnd   = vertical ? p.marginBottom : p.marginEnd;
+		const float cStart = vertical ? p.marginStart : p.marginTop;
+		const float cEnd   = vertical ? p.marginEnd : p.marginBottom;
 		const int   mainSpec = vertical ? p.height : p.width;
+		const int   crossSpec = vertical ? p.width : p.height;
 		const int   intrinsicMain = vertical ? p.intrinsicH : p.intrinsicW;
+		const int   intrinsicCross = vertical ? p.intrinsicW : p.intrinsicH;
 
 		const float weight = p.weight > 0.0f ? p.weight : 0.0f;
+		const float availMain = (std::max)(0.0f, mainSpace - mStart - mEnd);
+		const float availCross = (std::max)(0.0f, crossSpace - cStart - cEnd);
+
+		// A nested layout computes its own natural size when it is WRAP_CONTENT,
+		// or when this LinearLayout itself is being measured (AT_MOST) on the cross axis.
+		SIZE natural{};
+		const bool measureNatural = node.layout() != nullptr
+			&& (mainSpec == WRAP_CONTENT || crossSpec == WRAP_CONTENT
+				|| (crossSpec == MATCH_PARENT && measuring_));
+		if (measureNatural) {
+			const int availableW = (int)(vertical ? availCross : availMain);
+			const int availableH = (int)(vertical ? availMain : availCross);
+			natural = node.layout()->measure(availableW, availableH);
+		}
 
 		float base = 0.0f;
 		if (mainSpec > 0) {
 			base = (float)mainSpec;
 		}
-		else if (mainSpec == MATCH_PARENT) {
-			base = (weight > 0.0f) ? 0.0f : (std::max)(0.0f, mainSpace - mStart - mEnd);
+		else if (mainSpec == 0) {
+			// 0dp: only a weight can give it space.
+			base = 0.0f;
 		}
-		else {
-			base = (float)intrinsicMain;
+		else if (mainSpec == MATCH_PARENT) {
+			base = (weight > 0.0f) ? 0.0f : availMain;
+		}
+		else { // WRAP_CONTENT
+			base = measureNatural
+				? (float)(vertical ? natural.cy : natural.cx)
+				: (float)intrinsicMain;
+			if (base > availMain) base = availMain;
 		}
 
+		float cross = 0.0f;
+		if (crossSpec > 0) {
+			cross = (float)crossSpec;
+		}
+		else if (crossSpec == 0) {
+			cross = 0.0f;
+		}
+		else if (crossSpec == MATCH_PARENT) {
+			if (measuring_) {
+				// This LinearLayout is WRAP_CONTENT on the cross axis: match_parent
+				// degrades to wrap_content.
+				cross = measureNatural
+					? (float)(vertical ? natural.cx : natural.cy)
+					: (float)intrinsicCross;
+			}
+			else {
+				cross = availCross;
+			}
+		}
+		else { // WRAP_CONTENT
+			cross = measureNatural
+				? (float)(vertical ? natural.cx : natural.cy)
+				: (float)intrinsicCross;
+		}
+		if (p.gravity == Gravity::Stretch) cross = availCross;
+		if (availCross > 0.0f && cross > availCross) cross = availCross;
+
 		r.main = base;
+		r.cross = cross;
 		totalMargins += mStart + mEnd;
 		if (weight > 0.0f) {
 			totalWeight += weight;
@@ -610,7 +715,14 @@ void LinearLayout::layout_children() {
 		}
 	}
 
-	float cursor = mainStart;
+	float usedMain = totalMargins;
+	for (const LayoutRef& node : order) usedMain += result[node].main;
+
+	float offset = 0.0f;
+	if (content_gravity_ == Gravity::Center) offset = (mainSpace - usedMain) * 0.5f;
+	else if (content_gravity_ == Gravity::End) offset = mainSpace - usedMain;
+
+	float cursor = mainStart + offset;
 	for (const LayoutRef& node : order) {
 		const LinearParams& p = params[node];
 		Resolved& r = result[node];
@@ -619,20 +731,7 @@ void LinearLayout::layout_children() {
 		const float mEnd   = vertical ? p.marginBottom : p.marginEnd;
 		const float cStart = vertical ? p.marginStart : p.marginTop;
 		const float cEnd   = vertical ? p.marginEnd : p.marginBottom;
-
-		const int crossSpec = vertical ? p.width : p.height;
-		const int intrinsicCross = vertical ? p.intrinsicW : p.intrinsicH;
-
-		float cross = 0.0f;
-		if (crossSpec > 0) {
-			cross = (float)crossSpec;
-		}
-		else if (crossSpec == MATCH_PARENT || p.gravity == Gravity::Stretch) {
-			cross = (std::max)(0.0f, crossSpace - cStart - cEnd);
-		}
-		else {
-			cross = (float)intrinsicCross;
-		}
+		const float cross = r.cross;
 
 		float crossPos = crossStart + cStart;
 		switch (p.gravity) {
@@ -648,7 +747,9 @@ void LinearLayout::layout_children() {
 			crossPos = crossStart + cStart;
 			break;
 		}
-		if (crossPos < crossStart + cStart) crossPos = crossStart + cStart;
+		if (crossPos < crossStart + cStart && cross <= crossSpace - cStart - cEnd) {
+			crossPos = crossStart + cStart;
+		}
 
 		const float mainPos = cursor + mStart;
 
@@ -667,6 +768,20 @@ void LinearLayout::layout_children() {
 
 		cursor += mStart + r.main + mEnd;
 	}
+
+	float minCross = 0.0f, maxCross = 0.0f;
+	for (const LayoutRef& node : order) {
+		const Resolved& rr = result[node];
+		const float crossPos = vertical ? rr.l : rr.t;
+		const float crossSize = vertical ? rr.w : rr.h;
+		const float rel = crossPos - crossStart;
+		minCross = (std::min)(minCross, rel);
+		maxCross = (std::max)(maxCross, rel + crossSize);
+	}
+	const float contentCross = (std::max)(0.0f, maxCross - minCross);
+	last_content_ = vertical
+		? SIZE{ (LONG)std::lround(contentCross), (LONG)std::lround(usedMain) }
+		: SIZE{ (LONG)std::lround(usedMain), (LONG)std::lround(contentCross) };
 
 	if (layout_debug_mode()) {
 		if (cursor - mainStart > mainSpace + 0.5f) {

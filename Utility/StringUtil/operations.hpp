@@ -13,110 +13,193 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 
 namespace w32oop::util::str::operations {
-    /// @brief 字符串替换。
-    /// @param strBase 要进行替换的字符串。
-    /// @param strSrc 要替换的子字符串。
-    /// @param strDes 替换后的子字符串。
-    /// @return 替换后的字符串引用。
-    inline string& replace(
-        string& strBase, 
-        const string strSrc,
-        const string strDes
-    ) {
-        string::size_type pos = 0;
-        string::size_type srcLen = strSrc.size();
-        string::size_type desLen = strDes.size();
-        pos = strBase.find(strSrc, pos);
-        while ((pos != string::npos)) {
-            strBase.replace(pos, srcLen, strDes);
-            pos = strBase.find(strSrc, (pos + desLen));
-        }
-        return strBase;
-    }
-    /// @brief 字符串替换。
-    /// @param strBase 要进行替换的字符串。
-    /// @param strSrc 要替换的子字符串。
-    /// @param strDes 替换后的子字符串。
-    /// @return 替换后的字符串引用。
-    inline wstring& replace(
-        std::wstring& strBase,
-        const std::wstring strSrc,
-        const std::wstring strDes
-    ) {
-        wstring::size_type pos = 0;
-        wstring::size_type srcLen = strSrc.size();
-        wstring::size_type desLen = strDes.size();
-        pos = strBase.find(strSrc, pos);
-        while ((pos != wstring::npos)) {
-            strBase.replace(pos, srcLen, strDes);
-            pos = strBase.find(strSrc, (pos + desLen));
-        }
-        return strBase;
-    }
-    /// @brief 分割字符串。
-    /// @param src 要分割的字符串。
-    /// @param separator 作为分隔符的字符。
-    /// @param dest 存放分割后的字符串的vector向量。
-    /// @return 分割后的字符串向量的引用。
-    inline std::vector<std::string>& split(
-        const std::string& src, 
-        const std::string separator, 
-        std::vector<std::string>& dest
-    ) {
-        string str = src;
-        string substring;
-        string::size_type start = 0, index;
-        dest.clear();
-        index = str.find_first_of(separator, start);
-        do {
-            if (index == string::npos) break;
-            substring = str.substr(start, index - start);
-            dest.push_back(substring);
-            start = index + separator.size();
-            index = str.find(separator, start);
-            if (start == string::npos) break;
-        } while (index != string::npos);
-        
-        substring = str.substr(start);
-        dest.push_back(substring);
-        return dest;
-    }
-    /// @brief 分割字符串。
-    /// @param src 要分割的字符串。
-    /// @param separator 作为分隔符的字符。
-    /// @param dest 存放分割后的字符串的vector向量。
-    /// @return 分割后的字符串向量的引用。
-    inline std::vector<std::wstring>& split(
-        const std::wstring& src, 
-        const std::wstring separator, 
-        std::vector<std::wstring>& dest
-    ) {
-        wstring str = src;
-        wstring substring;
-        wstring::size_type start = 0, index;
-        dest.clear();
-        index = str.find_first_of(separator, start);
-        do {
-            if (index == wstring::npos) break;
-            substring = str.substr(start, index - start);
-            dest.push_back(substring);
-            start = index + separator.size();
-            index = str.find(separator, start);
-            if (start == wstring::npos) break;
-        } while (index != wstring::npos);
-        
-        substring = str.substr(start);
-        dest.push_back(substring);
-        return dest;
-    }
-    /// <summary>
-    /// 移除字符串前后的空白字符。
-    /// </summary>
-    /// <param name="str">欲移除的字符串</param>
-    inline void trim(std::wstring& str) {
-        // 删除前面的空白
-        str.erase(0, str.find_first_not_of(L" \t\r\n"));
-        // 删除后面的空白
-        str.erase(str.find_last_not_of(L" \t\r\n") + 1);
-    }
+	/// @brief 原地替换字符串中的子串。
+	inline std::string& replace(
+		std::string& strBase,
+		const std::string& strSrc,
+		const std::string& strDes
+	) {
+		if (strSrc.empty()) return strBase;
+
+		std::string::size_type pos = 0;
+		const std::string::size_type srcLen = strSrc.size();
+		const std::string::size_type desLen = strDes.size();
+
+		while ((pos = strBase.find(strSrc, pos)) != std::string::npos) {
+			strBase.replace(pos, srcLen, strDes);
+			pos += desLen;
+		}
+
+		return strBase;
+	}
+
+	/// @brief 原地替换字符串中的子串。
+	inline std::wstring& replace(
+		std::wstring& strBase,
+		const std::wstring& strSrc,
+		const std::wstring& strDes
+	) {
+		if (strSrc.empty()) return strBase;
+
+		std::wstring::size_type pos = 0;
+		const std::wstring::size_type srcLen = strSrc.size();
+		const std::wstring::size_type desLen = strDes.size();
+
+		while ((pos = strBase.find(strSrc, pos)) != std::wstring::npos) {
+			strBase.replace(pos, srcLen, strDes);
+			pos += desLen;
+		}
+
+		return strBase;
+	}
+
+	/// @brief 返回替换后的新字符串，原串不变。
+	inline std::string toReplaced(
+		const std::string& strBase,
+		const std::string& strSrc,
+		const std::string& strDes
+	) {
+		std::string result = strBase;
+		return replace(result, strSrc, strDes);
+	}
+
+	/// @brief 返回替换后的新字符串，原串不变。
+	inline std::wstring toReplaced(
+		const std::wstring& strBase,
+		const std::wstring& strSrc,
+		const std::wstring& strDes
+	) {
+		std::wstring result = strBase;
+		return replace(result, strSrc, strDes);
+	}
+
+	/// @brief 分割字符串，结果写入 dest。
+	inline std::vector<std::string>& split(
+		const std::string& src,
+		const std::string& separator,
+		std::vector<std::string>& dest
+	) {
+		dest.clear();
+
+		if (separator.empty()) {
+			dest.push_back(src);
+			return dest;
+		}
+
+		std::string::size_type start = 0;
+
+		for (;;) {
+			const std::string::size_type index = src.find(separator, start);
+			if (index == std::string::npos) {
+				dest.push_back(src.substr(start));
+				break;
+			}
+
+			dest.push_back(src.substr(start, index - start));
+			start = index + separator.size();
+		}
+
+		return dest;
+	}
+
+	/// @brief 分割字符串，结果写入 dest。
+	inline std::vector<std::wstring>& split(
+		const std::wstring& src,
+		const std::wstring& separator,
+		std::vector<std::wstring>& dest
+	) {
+		dest.clear();
+
+		if (separator.empty()) {
+			dest.push_back(src);
+			return dest;
+		}
+
+		std::wstring::size_type start = 0;
+
+		for (;;) {
+			const std::wstring::size_type index = src.find(separator, start);
+			if (index == std::wstring::npos) {
+				dest.push_back(src.substr(start));
+				break;
+			}
+
+			dest.push_back(src.substr(start, index - start));
+			start = index + separator.size();
+		}
+
+		return dest;
+	}
+
+	/// @brief 返回分割后的新向量。
+	inline std::vector<std::string> toSplit(
+		const std::string& src,
+		const std::string& separator
+	) {
+		std::vector<std::string> result;
+		split(src, separator, result);
+		return result;
+	}
+
+	/// @brief 返回分割后的新向量。
+	inline std::vector<std::wstring> toSplit(
+		const std::wstring& src,
+		const std::wstring& separator
+	) {
+		std::vector<std::wstring> result;
+		split(src, separator, result);
+		return result;
+	}
+
+	/// <summary>
+	/// 移除字符串前后的空白字符。
+	/// </summary>
+	/// <param name="str">欲移除的字符串</param>
+	inline void trim(std::string& str) {
+		const std::string::size_type first = str.find_first_not_of(" \t\r\n");
+		if (first == std::string::npos) {
+			str.clear();
+			return;
+		}
+		str.erase(0, first);
+
+		const std::string::size_type last = str.find_last_not_of(" \t\r\n");
+		str.erase(last + 1);
+	}
+
+	/// <summary>
+	/// 移除字符串前后的空白字符。
+	/// </summary>
+	/// <param name="str">欲移除的字符串</param>
+	inline void trim(std::wstring& str) {
+		const std::wstring::size_type first = str.find_first_not_of(L" \t\r\n");
+		if (first == std::wstring::npos) {
+			str.clear();
+			return;
+		}
+		str.erase(0, first);
+
+		const std::wstring::size_type last = str.find_last_not_of(L" \t\r\n");
+		str.erase(last + 1);
+	}
+
+	/// <summary>
+	/// 移除字符串前后的空白字符。
+	/// </summary>
+	/// <param name="str">欲移除的字符串</param>
+	inline std::string toTrimmed(const std::string& str) {
+		std::string result = str;
+		trim(result);
+		return result;
+	}
+
+	/// <summary>
+	/// 移除字符串前后的空白字符。
+	/// </summary>
+	/// <param name="str">欲移除的字符串</param>
+	inline std::wstring toTrimmed(const std::wstring& str) {
+		std::wstring result = str;
+		trim(result);
+		return result;
+	}
 }

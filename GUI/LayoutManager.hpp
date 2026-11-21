@@ -27,6 +27,8 @@ namespace w32oop::ui {
 		RECT bounds_{};          // area in the owner's client coordinate space
 		bool nested_ = false;    // true once placed by a parent layout
 		bool laying_out_ = false;
+		bool measuring_ = false; // true while measuring natural content size
+		SIZE last_content_{};    // natural content size measured by the last pass
 	public:
 		LayoutManager() = default;
 		LayoutManager(Window* ownerWindow): owner(ownerWindow) {}
@@ -46,11 +48,18 @@ namespace w32oop::ui {
 		[[nodiscard]] RECT bounds() const noexcept { return bounds_; }
 		[[nodiscard]] bool is_nested() const noexcept { return nested_; }
 
+		// Measure the natural content size for the given available space.
+		// Used by parent layouts when this layout is WRAP_CONTENT.
+		[[nodiscard]] virtual SIZE measure(int availableW, int availableH);
+
 		// Re-layout. A root layout syncs the owner's client rect; a nested layout
 		// uses the area assigned by its parent.
 		void doLayout();
 
 		[[nodiscard]] inline Window* owner_window() const { return owner; }
+
+		static constexpr int MATCH_PARENT = -2;
+		static constexpr int WRAP_CONTENT = -1;
 
 	protected:
 		// Subclasses implement the actual layout algorithm here.
@@ -101,8 +110,6 @@ namespace w32oop::ui {
 
 	class LinearLayout : public LayoutManager {
 	public:
-		static constexpr int MATCH_PARENT = -2;
-		static constexpr int WRAP_CONTENT = -1;
 
 		enum class Orientation { Vertical, Horizontal };
 		enum class Gravity { Start, Center, End, Stretch };
@@ -162,11 +169,11 @@ namespace w32oop::ui {
 				return *this;
 			}
 
-			Builder& gravity(Gravity g) noexcept { p_->gravity = g; return *this; }
-			Builder& gravityStart() noexcept { p_->gravity = Gravity::Start; return *this; }
-			Builder& gravityCenter() noexcept { p_->gravity = Gravity::Center; return *this; }
-			Builder& gravityEnd() noexcept { p_->gravity = Gravity::End; return *this; }
-			Builder& gravityStretch() noexcept { p_->gravity = Gravity::Stretch; return *this; }
+			Builder& gravity(Gravity g) noexcept { p_->gravity = g; layout_->content_gravity_ = g; return *this; }
+			Builder& gravityStart() noexcept { return gravity(Gravity::Start); }
+			Builder& gravityCenter() noexcept { return gravity(Gravity::Center); }
+			Builder& gravityEnd() noexcept { return gravity(Gravity::End); }
+			Builder& gravityStretch() noexcept { return gravity(Gravity::Stretch); }
 		};
 
 	public:
@@ -190,10 +197,15 @@ namespace w32oop::ui {
 		void orientation(Orientation o) noexcept { orientation_ = o; }
 		[[nodiscard]] Orientation orientation() const noexcept { return orientation_; }
 
+		// Alignment of the whole item group inside this layout's content box.
+		void gravity(Gravity g) noexcept { content_gravity_ = g; }
+		[[nodiscard]] Gravity gravity() const noexcept { return content_gravity_; }
+
 	protected:
 		std::unordered_map<LayoutRef, LinearParams, LayoutRef::Hash> params;
 		std::vector<LayoutRef> order;
 		Orientation orientation_ = Orientation::Vertical;
+		Gravity content_gravity_ = Gravity::Start;
 
 		void register_node(LayoutRef target);
 		void collect_intrinsics();
@@ -203,8 +215,6 @@ namespace w32oop::ui {
 
 	class ConstraintLayout : public LayoutManager {
 	public:
-		static constexpr int MATCH_PARENT     = -2;
-		static constexpr int WRAP_CONTENT     = -1;
 		static constexpr int MATCH_CONSTRAINT =  0;
 
 		enum class Edge { Left, Top, Right, Bottom, Start, End };

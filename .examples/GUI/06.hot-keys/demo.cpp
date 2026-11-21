@@ -171,8 +171,17 @@ protected:
     }
 };
 
-// Using console so that we can see the debug output
-int main() {
+// Please use DbgView to get the debug output
+int WINAPI wWinMain(
+    _In_ HINSTANCE hInstance,
+    _In_opt_ HINSTANCE hPrevInstance,
+    _In_ PWSTR pCmdLine,
+    _In_ int nCmdShow)
+{
+    UNREFERENCED_PARAMETER(hInstance);
+    UNREFERENCED_PARAMETER(hPrevInstance);
+    UNREFERENCED_PARAMETER(pCmdLine);
+    UNREFERENCED_PARAMETER(nCmdShow);
     try {
         // Enabling debug mode
         Window::set_global_option(Window::GlobalOptions::Option_DebugMode, true);

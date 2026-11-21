@@ -14,29 +14,78 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 namespace w32oop::util::str::encodings {
 	inline std::string utf16_utf8(PCWSTR utf16Str) {
-		if (utf16Str == nullptr) return "";
-		int utf16Len = static_cast<int>(wcslen(utf16Str));
-		int utf8Len = WideCharToMultiByte(CP_UTF8, 0, utf16Str,
-			utf16Len, nullptr, 0, nullptr, nullptr);
-		std::string utf8Str(utf8Len, 0);  // 创建一个足够大的字符串来容纳UTF-8字符串
-		WideCharToMultiByte(CP_UTF8, 0, utf16Str, utf16Len, &utf8Str[0],
-			utf8Len, nullptr, nullptr);
+		if (utf16Str == nullptr || *utf16Str == L'\0') return std::string();
+
+		const size_t wlen = wcslen(utf16Str);
+		if (wlen > static_cast<size_t>(INT_MAX)) return std::string();
+		const int utf16Len = static_cast<int>(wlen);
+
+		const int utf8Len = WideCharToMultiByte(CP_UTF8, 0, utf16Str,
+			utf16Len, nullptr, 0,
+			nullptr, nullptr);
+		if (utf8Len <= 0) return std::string();
+
+		std::string utf8Str(static_cast<size_t>(utf8Len), '\0');
+		if (WideCharToMultiByte(CP_UTF8, 0, utf16Str, utf16Len,
+			utf8Str.data(), utf8Len,
+			nullptr, nullptr) != utf8Len) {
+			return std::string();
+		}
 		return utf8Str;
 	}
+
 	inline std::wstring utf8_utf16(PCSTR utf8Str) {
-		if (utf8Str == nullptr) return L"";
-		int utf8Len = static_cast<int>(strlen(utf8Str));
-		int utf16Len = MultiByteToWideChar(CP_UTF8, 0, utf8Str,
+		if (utf8Str == nullptr || *utf8Str == '\0') return std::wstring();
+
+		const size_t blen = strlen(utf8Str);
+		if (blen > static_cast<size_t>(INT_MAX)) return std::wstring();
+		const int utf8Len = static_cast<int>(blen);
+
+		const int utf16Len = MultiByteToWideChar(CP_UTF8, 0, utf8Str,
 			utf8Len, nullptr, 0);
-		std::wstring utf16Str(utf16Len, 0);  // 创建一个足够大的wstring来容纳UTF-16字符串
-		MultiByteToWideChar(CP_UTF8, 0, utf8Str, utf8Len,
-			&utf16Str[0], utf16Len);
+		if (utf16Len <= 0) return std::wstring();
+
+		std::wstring utf16Str(static_cast<size_t>(utf16Len), L'\0');
+		if (MultiByteToWideChar(CP_UTF8, 0, utf8Str, utf8Len,
+			utf16Str.data(), utf16Len) != utf16Len) {
+			return std::wstring();
+		}
 		return utf16Str;
 	}
+
 	inline std::string utf16_utf8(const std::wstring& utf16Str) {
-		return utf16_utf8(utf16Str.c_str());
+		if (utf16Str.empty()) return std::string();
+		if (utf16Str.size() > static_cast<size_t>(INT_MAX)) return std::string();
+		const int utf16Len = static_cast<int>(utf16Str.size());
+
+		const int utf8Len = WideCharToMultiByte(CP_UTF8, 0, utf16Str.c_str(),
+			utf16Len, nullptr, 0,
+			nullptr, nullptr);
+		if (utf8Len <= 0) return std::string();
+
+		std::string utf8Str(static_cast<size_t>(utf8Len), '\0');
+		if (WideCharToMultiByte(CP_UTF8, 0, utf16Str.c_str(), utf16Len,
+			utf8Str.data(), utf8Len,
+			nullptr, nullptr) != utf8Len) {
+			return std::string();
+		}
+		return utf8Str;
 	}
+
 	inline std::wstring utf8_utf16(const std::string& utf8Str) {
-		return utf8_utf16(utf8Str.c_str());
+		if (utf8Str.empty()) return std::wstring();
+		if (utf8Str.size() > static_cast<size_t>(INT_MAX)) return std::wstring();
+		const int utf8Len = static_cast<int>(utf8Str.size());
+
+		const int utf16Len = MultiByteToWideChar(CP_UTF8, 0, utf8Str.c_str(),
+			utf8Len, nullptr, 0);
+		if (utf16Len <= 0) return std::wstring();
+
+		std::wstring utf16Str(static_cast<size_t>(utf16Len), L'\0');
+		if (MultiByteToWideChar(CP_UTF8, 0, utf8Str.c_str(), utf8Len,
+			utf16Str.data(), utf16Len) != utf16Len) {
+			return std::wstring();
+		}
+		return utf16Str;
 	}
 }
