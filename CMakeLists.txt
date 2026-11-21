@@ -12,7 +12,6 @@ if (BUILD_SHARED_LIBS)
     message(WARNING "w32oop only supports static libraries. BUILD_SHARED_LIBS is ignored.")
 endif ()
 
-option(W32OOP_BUILD_EXAMPLES "Build the examples in .examples/GUI" ON)
 option(W32OOP_ENABLE_PCH "Use w32use.hpp as a precompiled header" ON)
 option(W32OOP_USE_STATIC_CRT "Use the static CRT (/MT) instead of /MD" ON)
 option(W32OOP_ENABLE_LTO "Enable interprocedural optimization (/GL + /LTCG)" OFF)
@@ -30,6 +29,7 @@ set(W32OOP_SOURCES
     GUI/Menu.cpp
     GUI/TrayIcon.cpp
     GUI/Window.cpp
+    GUI/LayoutManager.cpp
     IO/File.cpp
     IO/PipeClient.cpp
     IO/PipeServer.cpp
@@ -41,7 +41,7 @@ set(W32OOP_SOURCES
 )
 
 if (MSVC)
-    # Must be set before any target is created so that examples/tests use the same CRT.
+    # Must be set before any target is created so that consumers use the same CRT.
     if (W32OOP_USE_STATIC_CRT)
         set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     else ()
@@ -62,9 +62,8 @@ if (MSVC)
     endif ()
 
     # The library objects must carry EH continuation metadata so that they can
-    # be linked into applications that enable /guard:ehcont. This matches the
-    # flags used by build-examples.py. LNK1386 is raised when a linked module
-    # was compiled without this option.
+    # be linked into applications that enable /guard:ehcont. LNK1386 is raised
+    # when a linked module was compiled without this option.
     if (W32OOP_ENABLE_EHCONT)
         add_compile_options(/guard:ehcont)
         add_link_options(/guard:ehcont)
@@ -112,37 +111,6 @@ target_link_libraries(w32oop PUBLIC
 
 if (W32OOP_ENABLE_PCH)
     target_precompile_headers(w32oop PRIVATE w32use.hpp)
-endif ()
-
-if (W32OOP_BUILD_EXAMPLES)
-    file(GLOB W32OOP_EXAMPLE_SOURCES CONFIGURE_DEPENDS
-        "${CMAKE_CURRENT_SOURCE_DIR}/.examples/GUI/*/demo.cpp")
-    foreach (example_source IN LISTS W32OOP_EXAMPLE_SOURCES)
-        get_filename_component(example_dir "${example_source}" DIRECTORY)
-        get_filename_component(example_name "${example_dir}" NAME)
-        string(REGEX REPLACE "[^A-Za-z0-9_]" "_" example_target "w32oop_example_${example_name}")
-
-        # Most examples use wWinMain (GUI subsystem). Some examples use main/wmain
-        # intentionally (for console debug output), so only mark those as WIN32.
-        file(READ "${example_source}" example_source_contents)
-        string(FIND "${example_source_contents}" "wWinMain" example_winmain_pos)
-        set(example_executable_options)
-        if (example_winmain_pos GREATER -1)
-            list(APPEND example_executable_options WIN32)
-        endif ()
-
-        add_executable(${example_target} ${example_executable_options} "${example_source}")
-        target_link_libraries(${example_target} PRIVATE w32oop)
-        set_target_properties(${example_target} PROPERTIES OUTPUT_NAME "${example_name}")
-
-        if (W32OOP_ENABLE_PCH)
-            target_precompile_headers(${example_target} PRIVATE w32use.hpp)
-        endif ()
-        if (MSVC)
-            target_link_options(${example_target} PRIVATE
-                "/MANIFESTINPUT:${CMAKE_CURRENT_SOURCE_DIR}/.examples/input.manifest")
-        endif ()
-    endforeach ()
 endif ()
 
 if (W32OOP_INSTALL)

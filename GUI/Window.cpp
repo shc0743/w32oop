@@ -1,4 +1,5 @@
 ﻿#include "Window.hpp"
+#include "LayoutManager.hpp"
 #include "../Utility/StringUtil/converts.hpp"
 #include "../System/Hooks.hpp"
 using namespace w32oop;
@@ -308,15 +309,14 @@ void Window::create() {
 	class_name = get_class_name();
 	register_class_if_needed();
 	if (get_global_option(Option_DebugMode)) {
-		fwprintf(stdout, L"[w32oop::ui::Window]: Creating window `%s` with style `%d` and title `%s`\n",
-			class_name.c_str(), int(setup_info->style), setup_info->title.c_str());
-		fflush(stdout);
+		OutputDebugStringW(std::format(L"[w32oop::ui::Window]: Creating window `{}` with style `{}` and title `{}`",
+			class_name, int(setup_info->style), setup_info->title).c_str());
 	}
 	hwnd = new_window();
 	if (!hwnd) {
 		if (get_global_option(Option_DebugMode)) {
-			fprintf(stderr, "[w32oop::ui::Window]: Cannot create window!! %d [where] CLASS_NAME = ", GetLastError());
-			fwprintf(stderr, L"%ls\n", class_name.c_str());
+			OutputDebugStringW(std::format(L"[w32oop::ui::Window]: Cannot create window!! {} where CLASS_NAME = {}",
+				GetLastError(), class_name).c_str());
 		}
 		throw window_creation_failure_exception();
 	}
@@ -337,7 +337,7 @@ void Window::create() {
 		DestroyWindow(hwnd);
 		hwnd = nullptr;
 		if (get_global_option(Option_DebugMode)) {
-			fprintf(stderr, "[w32oop::ui::Window]: Cannot create window: %s\n", exc.what());
+			OutputDebugStringA(std::format("[w32oop::ui::Window]: Cannot create window: %s\n", exc.what()).c_str());
 		}
 		throw;
 	}
@@ -541,7 +541,7 @@ void Window::destroy() {
 	validate_hwnd();
 	if (!DestroyWindow(hwnd)) {
 		if (get_global_option(Option_DebugMode)) {
-			fprintf(stderr, "[w32oop::ui::Window] Failed to destroy window %p\n", hwnd);
+			OutputDebugStringW(std::format(L"[w32oop::ui::Window] Failed to destroy window {}", (LPVOID)hwnd).c_str());
 			DebugBreak();
 		}
 		throw window_destroy_failure_exception("Unable to destroy window");
@@ -556,6 +556,11 @@ void Window::override_style(LONG_PTR style) {
 void Window::override_style_ex(LONG_PTR styleEx) {
 	validate_hwnd();
 	SetWindowLongPtr(hwnd, GWL_EXSTYLE, styleEx);
+}
+
+
+void Window::setLayoutManager(LayoutManager* lpLayoutManager) {
+	layoutManager = lpLayoutManager;
 }
 
 LRESULT Window::send(UINT msg, WPARAM wParam, LPARAM lParam) const {
@@ -630,9 +635,9 @@ LRESULT Window::_MyWndProc(UINT msg, WPARAM wParam, LPARAM lParam) {
 			if (!success) {
 				// the message is evil!!
 				if (get_global_option(Option_DebugMode)) {
-					string message = "The message is evil!! at " + to_string((ULONGLONG)(void*)hwnd) +
-						", received WM_NOTIFY, lParam = " + to_string(lParam);
-					fwrite(message.c_str(), message.size(), 1, stderr);
+					std::wstring message = L"The message is evil!! at " + to_wstring((ULONGLONG)(void*)hwnd) +
+						L", received WM_NOTIFY, lParam = " + to_wstring(lParam);
+					OutputDebugStringW(message.c_str());
 				}
 				return DefWindowProc(hwnd, msg, wParam, lParam);
 			}
@@ -766,8 +771,8 @@ void Window::dispatchEventForWindow(EventData& data) {
 				else if (get_global_option(Option_DebugMode)) {
 					string what = "[w32oop::ui::Window] [WARN]  Invalid event handler function in event handler,"
 						" message=" + to_string(data.message) + ", this=" + 
-						to_string((ULONGLONG)(void*)this) + "\n";
-					fwrite(what.c_str(), sizeof(decltype(what)::value_type), what.size(), stderr);
+						to_string((ULONGLONG)(void*)this);
+					OutputDebugStringA(what.c_str());
 					DebugBreak();
 				}
 				if (data.propagationStopped()) break;
@@ -776,7 +781,7 @@ void Window::dispatchEventForWindow(EventData& data) {
 				if (get_global_option(Option_DebugMode)) {
 					string what = "[w32oop::ui::Window] [ERROR] Unexpected exception in event handler: ";
 					what += e.what();
-					fwrite(what.c_str(), sizeof(decltype(what)::value_type), what.size(), stderr);
+					OutputDebugStringA(what.c_str());
 					DebugBreak();
 				}
 				throw;
@@ -968,6 +973,9 @@ void Window::onDestroy() {}
 
 void Window::m_onCreated() {
 	SendMessageW(hwnd, WM_SETFONT, (WPARAM)get_font(), 0);
+	addEventListener(WM_WINDOWPOSCHANGED, [this](EventData&) {
+		if (layoutManager) layoutManager->doLayout();
+	});
 	// 这个由于需要修改返回值不能塞到InternalWndProc
 	addEventListener(WM_DPICHANGED, [this](EventData& ev) {
 		if (!is_framework_dpi_virtualization_allowed()) return;

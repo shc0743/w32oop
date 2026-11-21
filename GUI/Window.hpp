@@ -93,6 +93,8 @@ public:
 	friend class Window;
 };
 
+class LayoutManager;
+
 
 class Window : public w32Window {
 public:
@@ -219,6 +221,8 @@ protected:
 		LONG style = WS_OVERLAPPED, styleEx = 0; 
 		HMENU hMenu = 0;
 	} *setup_info;
+
+	LayoutManager* layoutManager = nullptr;
 
 	virtual void transfer_ownership() final {
 		_owner = GetCurrentThreadId();
@@ -442,6 +446,8 @@ protected:
 
 	virtual void override_style(LONG_PTR style) final;
 	virtual void override_style_ex(LONG_PTR styleEx) final;
+
+	virtual void setLayoutManager(LayoutManager* lpLayoutManager);
 
 public:
 	// 发送消息到窗口

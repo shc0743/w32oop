@@ -9,7 +9,7 @@
     {
       "name": "vs2026-x64",
       "displayName": "Visual Studio 2026 x64 (static library)",
-      "description": "Generate a Visual Studio 2026 solution for the static w32oop library and the examples.",
+      "description": "Generate a Visual Studio 2026 solution for the static w32oop library.",
       "generator": "Visual Studio 18 2026",
       "architecture": "x64",
       "binaryDir": "${sourceDir}/build/vs2026-x64"

@@ -1,4 +1,4 @@
-﻿import os, sys
+import os, sys
 import subprocess
 import shutil
 import argparse
@@ -48,7 +48,7 @@ def find_cpp_files(base_dir, exclude_prefixes=('.',)):
 
 COMPILE_COMMON = [
     '/c',
-    '/EHsc', '/permissive-', '/Zi', '/Fd.cache/vc.pdb', '/MT', '/std:c++20', '/D_UNICODE', '/DUNICODE', '/DNDEBUG',
+    '/EHsc', '/permissive-', '/Z7', '/MT', '/std:c++20', '/D_UNICODE', '/DUNICODE', '/DNDEBUG',
     '/nologo',
     '/GS', '/GL', '/W4', '/Gy', '/Zc:wchar_t', '/Zc:inline', '/fp:precise',
     '/Qspectre', '/QIntel-jcc-erratum', '/Gm-', '/O2', '/Gd', '/Oi', '/guard:ehcont', '/guard:cf',
@@ -197,7 +197,7 @@ def build_examples(examples_dir, obj_dir, link_exe='link.exe'):
                 '/OPT:ICF',
                 '/LTCG',
                 '/guard:ehcont', '/guard:cf',
-                '/Brepro',
+                '/RELEASE', '/Brepro',
             ] + all_obj_files + sys_lib
 
             # 执行链接
@@ -235,7 +235,7 @@ def main():
 
     # 步骤 1: 找到所有 .cpp 文件 (排除点开头的目录)
     print("\033[94m扫描源文件...\033[0m")
-    cpp_files = find_cpp_files(project_root, exclude_prefixes=('.',))
+    cpp_files = find_cpp_files(project_root, exclude_prefixes=('.', 'build'))
     print(f"\033[96m找到 {len(cpp_files)} 个 .cpp 文件\033[0m")
 
     # 步骤 2: 编译为中间文件

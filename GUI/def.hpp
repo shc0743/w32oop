@@ -33,6 +33,11 @@ namespace w32oop::def {
         w32TrayIconObject() = default;
         ~w32TrayIconObject() = default;
     };
+    class w32LayoutManagerObject : public w32GUIObject {
+    public:
+        w32LayoutManagerObject() = default;
+        ~w32LayoutManagerObject() = default;
+    };
 }
 
 namespace w32oop::exceptions {
