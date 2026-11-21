@@ -1,7 +1,7 @@
 ﻿// w32oop Framework Example
 //
 // : 10.use-layouts/demo.cpp
-// This example demonstrates how to use layout managers.
+// This example demonstrates the flexbox layout engine.
 
 #include <w32use.hpp>
 
@@ -13,44 +13,45 @@ using namespace std;
 
 class LayoutsDemoWindow : public Window {
 public:
-	LayoutsDemoWindow() : Window(L"Layout Managers Demo", 760, 520, 0, 0, WS_OVERLAPPEDWINDOW) {}
+	LayoutsDemoWindow() : Window(L"Flexbox Layout Demo", 760, 520, 0, 0, WS_OVERLAPPEDWINDOW) {}
 
 private:
+	// Layout objects live as long as the window. root refers to the nested
+	// layouts below, so they must outlive root's last layout pass (they do:
+	// members are destroyed after the base Window is gone).
+	FlexLayout root{ Direction::Column };
+	FlexLayout header{ Direction::Row };
+	FlexLayout toolbar{ Direction::Row };
+	FlexLayout tags{ Direction::Row };
+
 	Static title;
-	Static status;
+	Static hint;
 	Edit editor;
 	Button btnNew, btnOpen, btnSave, btnApply;
-
-	LinearLayout rootLayout;
-	LinearLayout bodyLayout;
-	LinearLayout leftColumn;
-	ConstraintLayout rightPane;
-
-	void relayout() {
-		if (rootLayout.owner_window()) rootLayout.doLayout();
-	}
+	Static tagA, tagB, tagC, tagD, tagE;
+	Static status;
 
 	void onCreated() override {
-		// 1. Create the controls first.
-		title = Static(*this, L"LinearLayout + ConstraintLayout (nested)", 100, 36);
+		// 1. Create the controls. The parent is always *this.
+		title = Static(*this, L"Flexbox layout", 160, 24);
 		title.create();
 
-		status = Static(*this, L"Resize the window to reflow the layout.", 100, 24);
-		status.create();
+		hint = Static(*this, L"Resize the window", 150, 24);
+		hint.create();
 
-		btnNew = Button(*this, L"New", 100, 30);
+		btnNew = Button(*this, L"New", 96, 30);
 		btnNew.create();
 		btnNew.onClick([this](EventData&) { status.text(L"New clicked."); });
 
-		btnOpen = Button(*this, L"Open", 100, 30);
+		btnOpen = Button(*this, L"Open", 96, 30);
 		btnOpen.create();
 		btnOpen.onClick([this](EventData&) { status.text(L"Open clicked."); });
 
-		btnSave = Button(*this, L"Save", 100, 30);
+		btnSave = Button(*this, L"Save", 96, 30);
 		btnSave.create();
 		btnSave.onClick([this](EventData&) { status.text(L"Save clicked."); });
 
-		btnApply = Button(*this, L"Apply", 100, 30);
+		btnApply = Button(*this, L"Apply", 96, 30);
 		btnApply.create();
 		btnApply.onClick([this](EventData&) {
 			status.text(L"Editor content: " + editor.text());
@@ -60,67 +61,60 @@ private:
 			Edit::STYLE | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN | WS_VSCROLL);
 		editor.create();
 
-		// 2. Attach the owner now that the window exists.
-		rootLayout.set_owner(this);
-		bodyLayout.set_owner(this);
-		bodyLayout.orientation(LinearLayout::Orientation::Horizontal);
-		leftColumn.set_owner(this);
-		rightPane.set_owner(this);
+		tagA = Static(*this, L"layout", 86, 24, 0, 0, Static::STYLE | SS_CENTER);
+		tagA.create();
+		tagB = Static(*this, L"flexbox", 86, 24, 0, 0, Static::STYLE | SS_CENTER);
+		tagB.create();
+		tagC = Static(*this, L"grow", 86, 24, 0, 0, Static::STYLE | SS_CENTER);
+		tagC.create();
+		tagD = Static(*this, L"shrink", 86, 24, 0, 0, Static::STYLE | SS_CENTER);
+		tagD.create();
+		tagE = Static(*this, L"wrap", 86, 24, 0, 0, Static::STYLE | SS_CENTER);
+		tagE.create();
 
-		// 3. Describe the layout: root = title / body / status bar.
-		rootLayout.define(title)
-			.matchParent()
-			.height(36)
-			.margin(12);
+		status = Static(*this, L"Ready.", 100, 22);
+		status.create();
 
-		rootLayout.define(bodyLayout)
-			.matchParent()
-			.weight(1.0f)
-			.margin(12);
+		// 2. Describe the layout. No manual relayout calls are needed: adding
+		//    items and changing styles schedules one reflow automatically.
+		root.padding(12).gap(10);
 
-		rootLayout.define(status)
-			.matchParent()
-			.height(24)
-			.margin(12);
+		// header: title on the left, hint on the right
+		root.add(header).height(28);
+		header.justifyContent(Justify::SpaceBetween).alignItems(Align::Center);
+		header.add(title).width(160);
+		header.add(hint).width(150);
 
-		// 4. Body = button column on the left + constraint pane on the right; weight splits the width.
-		bodyLayout.define(leftColumn)
-			.matchParent()
-			.weight(1.0f)
-			.marginEnd(8);
+		// toolbar: equal-width buttons, gap between them, stretched to 32px high
+		root.add(toolbar).height(32);
+		toolbar.gap(8);
+		toolbar.add(btnNew).width(96);
+		toolbar.add(btnOpen).width(96);
+		toolbar.add(btnSave).width(96);
+		toolbar.add(btnApply).width(96);
 
-		bodyLayout.define(rightPane)
-			.matchParent()
-			.weight(2.0f)
-			.marginStart(8);
+		// tags: wraps into a second line when the window gets narrow
+		root.add(tags).height(56);
+		tags.gap(6).wrap(true);
+		tags.alignContent(AlignContent::Start);
+		tags.add(tagA).width(86).height(24);
+		tags.add(tagB).width(86).height(24);
+		tags.add(tagC).width(86).height(24);
+		tags.add(tagD).width(86).height(24);
+		tags.add(tagE).width(86).height(24);
 
-		leftColumn.define(btnNew).matchParent().height(32).marginBottom(6);
-		leftColumn.define(btnOpen).matchParent().height(32).marginBottom(6);
-		leftColumn.define(btnSave).matchParent().height(32).marginBottom(6);
-		leftColumn.define(btnApply).matchParent().height(32);
+		// editor: flex: 1 1 0 — it absorbs all remaining vertical space
+		root.add(editor).grow(1).basis(0).minHeight(0).margin(LayoutInsets::symmetric(0, 2));
 
-		// 5. Right ConstraintLayout: editor spans the width, Apply is pinned to the bottom-right.
-		rightPane.define(editor)
-			.width(ConstraintLayout::MATCH_CONSTRAINT)
-			.height(140)
-			.constraintTop_toTopOf(nullptr)
-			.constraintStart_toStartOf(nullptr)
-			.constraintEnd_toEndOf(nullptr)
-			.margin(8);
-
-		rightPane.define(btnApply)
-			.size(120, 32)
-			.constraintEnd_toEndOf(nullptr)
-			.constraintBottom_toBottomOf(nullptr)
-			.margin(8);
-
-		// 6. First layout pass.
-		relayout();
+		// status bar: fixed height
+		root.add(status).height(22);
 	}
 
 protected:
 	virtual void setup_event_handlers() override {
-		setLayoutManager(&rootLayout);
+		// Bind the root layout. From now on the window reflows on WM_SIZE and
+		// whenever the layout tree changes.
+		set_layout(root);
 	}
 };
 

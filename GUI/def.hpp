@@ -33,11 +33,6 @@ namespace w32oop::def {
         w32TrayIconObject() = default;
         ~w32TrayIconObject() = default;
     };
-    class w32LayoutManagerObject : public w32GUIObject {
-    public:
-        w32LayoutManagerObject() = default;
-        ~w32LayoutManagerObject() = default;
-    };
 }
 
 namespace w32oop::exceptions {
@@ -63,6 +58,9 @@ namespace w32oop::ui {
     constexpr ULONGLONG WINDOW_NOTIFICATION_CODES = 0x0000800100000000ULL;
     constexpr ULONGLONG WINDOW_NOTIFICATION_CODES_SUPREMUM = 0x0000800200000000ULL;
     constexpr ULONGLONG WM_MENU_CHECKED = 0x0000100100000000ULL;
+
+    // 内部消息：布局内容变了，请窗口重排（布局的 reflow 回调只捕获 HWND，用它请求重排）。
+    constexpr UINT WM_LAYOUT_INVALIDATED = WM_APP + 0x2F1;
 
 #ifdef ICC_ALL_CLASSES
 #undef ICC_ALL_CLASSES

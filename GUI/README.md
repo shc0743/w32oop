@@ -99,6 +99,59 @@ int main() {
 
 [Full Demo Here](../.examples/GUI/10.creating-controls/demo.cpp)
 
+## Layout (flexbox)
+
+`FlexLayout` is a one-dimensional flexbox engine. Bind a root layout to a window
+with `set_layout()`; a nested `FlexLayout` is pure geometry (it has no HWND).
+
+```cpp
+class MyWindow : public Window {
+    FlexLayout root{Direction::Column};
+    FlexLayout toolbar{Direction::Row};
+    Edit editor;
+    Button ok, cancel;
+
+    void setup_event_handlers() override {
+        set_layout(root);
+    }
+
+    void onCreated() override {
+        // Create the controls first (parent = *this) ...
+        root.padding(12).gap(8);
+        root.add(toolbar).height(32);
+        toolbar.gap(8);
+        toolbar.add(ok).width(96);
+        toolbar.add(cancel).width(96);
+        root.add(editor).grow(1).basis(0).minHeight(0);  // takes the rest
+    }
+};
+```
+
+* Container properties mirror CSS: `direction`, `wrap`, `justifyContent`,
+  `alignItems`, `alignContent`, `gap` / `rowGap` / `columnGap`, `padding`.
+* Item properties: `grow`, `shrink`, `basis`, `width` / `height` (pixels or
+  `Percent{..}`), `minWidth` / `maxWidth` / `minHeight` / `maxHeight`, `margin`,
+  `alignSelf`.
+* `grow(1).basis(0)` is CSS `flex: 1`; `grow(1)` alone grows from the content size.
+* Items keep insertion order. `remove()` / `clear()` update the tree.
+* The window reflows automatically on `WM_SIZE` and whenever the tree changes;
+  `relayout()` forces it manually.
+* The content size of a control is the size passed to its constructor. Custom
+  controls can override `Window::content_size()`.
+* Differences from CSS: minimum size defaults to `0` (no `min-width: auto` trap),
+  no auto margins, no `order`, no baseline alignment, no RTL, no text metrics.
+  Overflow is clipped by the parent window.
+
+The flexbox solver is headless and unit tested:
+
+```bat
+cmake --preset vs2026-x64 -DW32OOP_BUILD_TESTS=ON
+cmake --build --preset vs2026-x64-release
+ctest --test-dir build/vs2026-x64 -C Release --output-on-failure
+```
+
+[Full Demo Here](../.examples/GUI/10.use-layouts/demo.cpp)
+
 ## More examples
 
 [Examples](../.examples/GUI/)

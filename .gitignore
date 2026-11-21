@@ -58,6 +58,7 @@ out
 ipch
 *.ipch
 .cache
+/.test
 *.exe
 
 

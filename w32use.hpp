@@ -33,7 +33,7 @@ using namespace w32oop::concurrency;
 #ifndef W32USE_NO_GUI
 // Use GUI
 #include "./GUI/Window.hpp"
-#include "./GUI/LayoutManager.hpp"
+#include "./GUI/FlexLayout.hpp"
 #include "./GUI/Menu.hpp"
 #include "./GUI/TrayIcon.hpp"
 #include "./GUI/ParseColor.hpp"
