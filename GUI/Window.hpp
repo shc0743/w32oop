@@ -345,30 +345,28 @@ public:
 
 	virtual bool force_focus(DWORD timeout = 10000) final;
 
-	// 计算经框架DPI虚拟化后的数值（尺寸/坐标/字体大小等）。
-	// 当全局选项 Option_DisableFrameworkDpiVirtualization 或当前窗口
-	// 关闭了框架DPI虚拟化时，原样返回；否则返回 n × 当前DPI缩放系数。
+	// 逻辑坐标 → 物理坐标
 	[[nodiscard]] virtual int scaled(int n) const {
 		if (!is_framework_dpi_virtualization_allowed()) return n;
 		return static_cast<int>(n * _dpi_scale_factor + (n >= 0 ? 0.5f : -0.5f));
 	}
-	// scaled 的逆运算：物理坐标 → 逻辑坐标（除以DPI缩放系数）。
+	// 物理坐标 → 逻辑坐标
 	[[nodiscard]] virtual int unscaled(int n) const {
 		if (!is_framework_dpi_virtualization_allowed()) return n;
 		return static_cast<int>(n / _dpi_scale_factor + (n >= 0 ? 0.5f : -0.5f));
 	}
-	// 转换逻辑坐标 → 物理坐标。
-	[[nodiscard]] virtual POINT scale_point(const POINT& pt) {
+	// 逻辑坐标 → 物理坐标
+	[[nodiscard]] virtual POINT scale_point(const POINT& pt) const {
 		return POINT{ .x = scaled((int)pt.x), .y = scaled((int)pt.y), };
 	}
-	// 转换物理坐标 → 逻辑坐标。
-	[[nodiscard]] virtual POINT unscale_point(const POINT& pt) {
+	// 物理坐标 → 逻辑坐标
+	[[nodiscard]] virtual POINT unscale_point(const POINT& pt) const {
 		return POINT{ .x = unscaled((int)pt.x), .y = unscaled((int)pt.y), };
 	}
-	[[nodiscard]] virtual RECT scale_rect(const RECT& rc);
-	virtual RECT* scale_rect(RECT* lpRect);
-	[[nodiscard]] virtual RECT unscale_rect(const RECT& rc);
-	virtual RECT* unscale_rect(RECT* lpRect);
+	[[nodiscard]] virtual RECT scale_rect(const RECT& rc) const;
+	virtual RECT* scale_rect(RECT* lpRect) const;
+	[[nodiscard]] virtual RECT unscale_rect(const RECT& rc) const;
+	virtual RECT* unscale_rect(RECT* lpRect) const;
 
 	inline void move_to(int x, int y) {
 		validate_hwnd();
@@ -389,8 +387,8 @@ public:
 		resize(rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top);
 	}
 
-	virtual RECT rect();
-	virtual RECT client_rect();
+	virtual RECT rect() const;
+	virtual RECT client_rect() const;
 
 	virtual void center(HWND parent = NULL) final;
 	static void center(HWND, HWND parent);

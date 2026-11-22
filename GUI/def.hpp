@@ -38,6 +38,16 @@ namespace w32oop::def {
         w32LayoutManagerObject() = default;
         ~w32LayoutManagerObject() = default;
     };
+    class w32LayoutNodeObject : public w32GUIObject {
+    public:
+        w32LayoutNodeObject() = default;
+        ~w32LayoutNodeObject() = default;
+    };
+    class w32DeclarativeObject : public w32GUIObject {
+    public:
+        w32DeclarativeObject() = default;
+        ~w32DeclarativeObject() = default;
+    };
 }
 
 namespace w32oop::exceptions {

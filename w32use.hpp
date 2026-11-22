@@ -30,17 +30,26 @@ using namespace w32oop::concurrency;
 #endif
 
 
+#ifndef W32USE_NO_REACTIVE
+// Use reactive
+#include "./Reactive/Effect.hpp"
+#include "./Reactive/Ref.hpp"
+#include "./Reactive/Computed.hpp"
+#include "./Reactive/Watch.hpp"
+#endif
+
+
 #ifndef W32USE_NO_GUI
 // Use GUI
 #include "./GUI/Window.hpp"
-#include "./GUI/LayoutManager.hpp"
+#include "./GUI/Layout.hpp"
 #include "./GUI/Menu.hpp"
 #include "./GUI/TrayIcon.hpp"
 #include "./GUI/ParseColor.hpp"
 using namespace w32oop::ui;
 #include "./GUI/FoundationLib.hpp"
 using namespace w32oop::ui::foundation;
-
+#include "./GUI/Declarative.hpp"
 #ifndef W32USE_PUBLIC_API_ONLY
 #include "./GUI/InternalMessageBox.hpp"
 #endif

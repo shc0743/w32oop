@@ -1,15 +1,12 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(w32oop VERSION 5.6.5.2 LANGUAGES CXX)
+project(w32oop VERSION 1.0.0 LANGUAGES CXX)
 
 if (NOT WIN32)
     message(FATAL_ERROR "w32oop supports Windows only.")
 endif ()
-if (NOT MSVC)
-    message(WARNING "w32oop is developed against MSVC; other compilers are unsupported.")
-endif ()
 if (BUILD_SHARED_LIBS)
-    message(WARNING "w32oop only supports static libraries. BUILD_SHARED_LIBS is ignored.")
+    message(FATAL_ERROR "Dynamic link library is not supported")
 endif ()
 
 option(W32OOP_ENABLE_PCH "Use w32use.hpp as a precompiled header" ON)
@@ -19,6 +16,7 @@ option(W32OOP_ENABLE_CFG "Enable /guard:cf Control Flow Guard" ON)
 option(W32OOP_ENABLE_SPECTRE "Enable /Qspectre Spectre mitigation" ON)
 option(W32OOP_ENABLE_JCC_ERRATUM "Enable /QIntel-jcc-erratum mitigation" ON)
 option(W32OOP_ENABLE_EHCONT "Compile and link with /guard:ehcont" ON)
+option(W32OOP_ENABLE_DYNAMIC_CODE_GENERATION "Enable dynamic code generation" OFF)
 option(W32OOP_INSTALL "Generate install rules and package config files" ON)
 
 set(W32OOP_SOURCES
@@ -26,10 +24,14 @@ set(W32OOP_SOURCES
     Concurrency/Process.cpp
     Concurrency/Thread.cpp
     GUI/FoundationLib.cpp
+    GUI/Declarative/Diff.cpp
+    GUI/Declarative/LayoutManager.cpp
+    GUI/Declarative/Reconciler.cpp
+    GUI/Layout/FlexLayout.cpp
+    GUI/Layout/FlexSolver.cpp
     GUI/Menu.cpp
     GUI/TrayIcon.cpp
     GUI/Window.cpp
-    GUI/LayoutManager.cpp
     IO/File.cpp
     IO/PipeClient.cpp
     IO/PipeServer.cpp
@@ -61,9 +63,6 @@ if (MSVC)
         add_compile_options(/QIntel-jcc-erratum)
     endif ()
 
-    # The library objects must carry EH continuation metadata so that they can
-    # be linked into applications that enable /guard:ehcont. LNK1386 is raised
-    # when a linked module was compiled without this option.
     if (W32OOP_ENABLE_EHCONT)
         add_compile_options(/guard:ehcont)
         add_link_options(/guard:ehcont)
@@ -85,6 +84,9 @@ add_library(w32oop::w32oop ALIAS w32oop)
 
 target_compile_features(w32oop PUBLIC cxx_std_20)
 target_compile_definitions(w32oop PUBLIC UNICODE _UNICODE)
+if (W32OOP_ENABLE_DYNAMIC_CODE_GENERATION)
+    target_compile_definitions(w32oop PRIVATE W32OOP_HOOKS_ENABLE_DYNAMIC)
+endif ()
 target_include_directories(w32oop PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     $<INSTALL_INTERFACE:include/w32oop>
@@ -123,7 +125,7 @@ if (W32OOP_INSTALL)
     )
 
     install(FILES w32use.hpp DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/w32oop")
-    foreach (module Core Concurrency GUI IO Network System Utility)
+    foreach (module Core Concurrency GUI IO Network Reactive System Utility)
         install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/${module}"
             DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/w32oop"
             FILES_MATCHING PATTERN "*.hpp")

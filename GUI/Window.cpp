@@ -1,5 +1,6 @@
 ﻿#include "Window.hpp"
-#include "LayoutManager.hpp"
+#include "Layout/LayoutNode.hpp"
+#include "Declarative/LayoutManager.hpp"
 #include "../Utility/StringUtil/converts.hpp"
 #include "../System/Hooks.hpp"
 using namespace std;
@@ -403,7 +404,7 @@ bool Window::force_focus(DWORD timeout) {
 	return focus();
 }
 
-RECT* Window::scale_rect(RECT* lpRect) {
+RECT* Window::scale_rect(RECT* lpRect) const {
 	lpRect->left = scaled(lpRect->left);
 	lpRect->top = scaled(lpRect->top);
 	lpRect->right = scaled(lpRect->right);
@@ -411,7 +412,7 @@ RECT* Window::scale_rect(RECT* lpRect) {
 	return lpRect;
 }
 
-RECT* Window::unscale_rect(RECT* lpRect) {
+RECT* Window::unscale_rect(RECT* lpRect) const {
 	lpRect->left = unscaled(lpRect->left);
 	lpRect->top = unscaled(lpRect->top);
 	lpRect->right = unscaled(lpRect->right);
@@ -419,22 +420,22 @@ RECT* Window::unscale_rect(RECT* lpRect) {
 	return lpRect;
 }
 
-RECT Window::scale_rect(const RECT& rc) {
+RECT Window::scale_rect(const RECT& rc) const {
 	RECT r = rc;
 	return *scale_rect(&r);
 }
 
-RECT Window::unscale_rect(const RECT& rc) {
+RECT Window::unscale_rect(const RECT& rc) const {
 	RECT r = rc;
 	return *unscale_rect(&r);
 }
 
-RECT Window::rect() {
+RECT Window::rect() const {
 	RECT rc{}; GetWindowRect(hwnd, &rc);
 	return unscale_rect(rc);
 }
 
-RECT Window::client_rect() {
+RECT Window::client_rect() const {
 	RECT rc{}; GetClientRect(hwnd, &rc);
 	return unscale_rect(rc);
 }
@@ -559,9 +560,10 @@ void Window::override_style_ex(LONG_PTR styleEx) {
 	SetWindowLongPtr(hwnd, GWL_EXSTYLE, styleEx);
 }
 
-
 void Window::setLayoutManager(LayoutManager* lpLayoutManager) {
+	if (layoutManager && layoutManager != lpLayoutManager) layoutManager->detach();
 	layoutManager = lpLayoutManager;
+	if (layoutManager) layoutManager->attach(this);
 }
 
 LRESULT Window::send(UINT msg, WPARAM wParam, LPARAM lParam) const {
@@ -974,8 +976,9 @@ void Window::onDestroy() {}
 
 void Window::m_onCreated() {
 	SendMessageW(hwnd, WM_SETFONT, (WPARAM)get_font(), 0);
-	addEventListener(WM_WINDOWPOSCHANGED, [this](EventData&) {
-		if (layoutManager) layoutManager->doLayout();
+	addEventListener(WM_SIZE, [this](EventData& ev) {
+		if (ev.hwnd != hwnd) return;
+		if (layoutManager) layoutManager->requestLayout();
 	});
 	// 这个由于需要修改返回值不能塞到InternalWndProc
 	addEventListener(WM_DPICHANGED, [this](EventData& ev) {
@@ -990,6 +993,7 @@ void Window::m_onCreated() {
 				suggested->bottom - suggested->top,
 				SWP_NOZORDER | SWP_NOACTIVATE);
 		}
+		if (layoutManager) layoutManager->requestLayout();
 		ev.returnValue(0);
 	});
 }

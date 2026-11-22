@@ -1,4 +1,6 @@
-﻿// w32oop Framework Example
+﻿// This demo is outdated! It won't work and do not use this anymore
+
+// w32oop Framework Example
 //
 // : 10.use-layouts/demo.cpp
 // This example demonstrates how to use layout managers.

@@ -143,7 +143,7 @@ def build_examples(examples_dir, obj_dir, link_exe='link.exe'):
     # 遍历所有示例目录
     for root, dirs, files in os.walk(examples_dir):
         # 只处理包含 demo.cpp 的目录
-        if 'demo.cpp' in files:
+        if 'demo.cpp' in files and ('deprecated' not in root):
             demo_cpp = os.path.join(root, 'demo.cpp')
             example_name = os.path.basename(root)
             exe_output = os.path.join(root, f"{example_name}.exe")

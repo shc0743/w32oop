@@ -69,6 +69,5 @@ if __name__ == '__main__':
     import sys
     if sys.platform.startswith('win'):
         enable_vt_mode()
-    os.chdir('..')
     process_files()
     input('Enter to continue')

@@ -13,12 +13,15 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #include <stdexcept>
 #include <cstdint>
 #include <utility>
+#include <memory>
 #include <vector>
 #include <map>
+#include <algorithm>
 #include <functional>
 #include <mutex>
 #include <format>
 #include <concepts>
+#include <type_traits>
 #include <Windows.h>
 #include <windowsx.h>
 
