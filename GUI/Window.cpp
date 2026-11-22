@@ -1,5 +1,5 @@
 ﻿#include "Window.hpp"
-#include "LayoutNode.hpp"
+#include "LayoutManager.hpp"
 #include "../Utility/StringUtil/converts.hpp"
 #include "../System/Hooks.hpp"
 using namespace std;
@@ -267,10 +267,6 @@ w32oop_ui_window_move_value(is_main_window, other); \
 w32oop_ui_window_move_value(_is_compositioning, other); \
 w32oop_ui_window_move_value(_disable_framework_dpi_virtualization_for_this_window, other); \
 w32oop_ui_window_move_value(_dpi_scale_factor, other); \
-w32oop_ui_window_move_value(_design_width, other); \
-w32oop_ui_window_move_value(_design_height, other); \
-w32oop_ui_window_move_value(_relayout_running, other); \
-w32oop_ui_window_move_value(layout_, other); \
 w32oop_ui_window_move_value(user, other); \
 
 Window::Window(Window&& other) noexcept : w32Window(),
@@ -317,10 +313,6 @@ void Window::create() {
 		OutputDebugStringW(std::format(L"[w32oop::ui::Window]: Creating window `{}` with style `{}` and title `{}`",
 			class_name, int(setup_info->style), setup_info->title).c_str());
 	}
-	// 记住逻辑尺寸：布局在「自动尺寸」时用它作为内容尺寸。
-	// 放在这里而不是 new_window()，是因为控件类重写了 new_window()。
-	_design_width = setup_info->width;
-	_design_height = setup_info->height;
 	hwnd = new_window();
 	if (!hwnd) {
 		if (get_global_option(Option_DebugMode)) {
@@ -340,8 +332,6 @@ void Window::create() {
 		setup_event_handlers();
 		m_onCreated();
 		onCreated();
-		// 首次布局放在显示之前，避免控件先出现在 (0,0) 再跳位。
-		if (layout_) relayout();
 		_created = true;
 	}
 	catch (std::exception& exc) {
@@ -549,8 +539,6 @@ void Window::remove_style_ex(LONG_PTR styleEx) {
 }
 
 void Window::destroy() {
-	// 之前绑定在这个窗口上的布局不再由我们驱动（布局对象可能先于窗口析构）。
-	layout_ = nullptr;
 	validate_hwnd();
 	if (!DestroyWindow(hwnd)) {
 		if (get_global_option(Option_DebugMode)) {
@@ -572,63 +560,8 @@ void Window::override_style_ex(LONG_PTR styleEx) {
 }
 
 
-void Window::set_layout(LayoutNode& root) {
-	layout_ = &root;
-	// 回调只捕获 HWND：即使这个 Window 对象先被销毁，也不会留下悬垂的 this。
-	const HWND h = hwnd;
-	root.set_reflow_handler([h]() {
-		if (h && IsWindow(h)) PostMessageW(h, WM_LAYOUT_INVALIDATED, 0, 0);
-	});
-	if (created() && hwnd) relayout();
-}
-
-SIZE Window::content_size() const {
-	return SIZE{ _design_width, _design_height };
-}
-
-void Window::relayout() {
-	if (!layout_ || !hwnd || _relayout_running) return;
-
-	RECT rc = client_rect();
-	LayoutRect area{ 0, 0, rc.right - rc.left, rc.bottom - rc.top };
-	if (area.width < 0) area.width = 0;
-	if (area.height < 0) area.height = 0;
-
-	_relayout_running = true;
-	std::vector<Placement> placements;
-	try {
-		placements = layout_->arrange(area);
-	}
-	catch (...) {
-		_relayout_running = false;
-		throw;
-	}
-
-	if (!placements.empty()) {
-		HDWP batch = BeginDeferWindowPos(static_cast<int>(placements.size()));
-		for (const Placement& placement : placements) {
-			if (!placement.hwnd || !IsWindow(placement.hwnd)) continue;
-			const int x = scaled(placement.rect.x);
-			const int y = scaled(placement.rect.y);
-			const int w = scaled(placement.rect.width);
-			const int h = scaled(placement.rect.height);
-			if (batch) {
-				const HDWP next = DeferWindowPos(batch, placement.hwnd, nullptr,
-					x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
-				if (next) {
-					batch = next;
-					continue;
-				}
-				// 批处理句柄失效，后续逐个移动。
-				batch = nullptr;
-			}
-			SetWindowPos(placement.hwnd, nullptr, x, y, w < 0 ? 0 : w, h < 0 ? 0 : h,
-				SWP_NOZORDER | SWP_NOACTIVATE);
-		}
-		if (batch) EndDeferWindowPos(batch);
-	}
-
-	_relayout_running = false;
+void Window::setLayoutManager(LayoutManager* lpLayoutManager) {
+	layoutManager = lpLayoutManager;
 }
 
 LRESULT Window::send(UINT msg, WPARAM wParam, LPARAM lParam) const {
@@ -1041,15 +974,8 @@ void Window::onDestroy() {}
 
 void Window::m_onCreated() {
 	SendMessageW(hwnd, WM_SETFONT, (WPARAM)get_font(), 0);
-	// 窗口尺寸变化 → 重排。WM_SIZE 不会从子控件冒泡上来，仍然判断来源以防万一。
-	addEventListener(WM_SIZE, [this](EventData& ev) {
-		if (ev.hwnd != hwnd) return;
-		relayout();
-	});
-	// 布局内容变化（add / 样式 setter / remove）→ 合并成一次重排。
-	addEventListener(WM_LAYOUT_INVALIDATED, [this](EventData& ev) {
-		if (ev.hwnd != hwnd) return;
-		relayout();
+	addEventListener(WM_WINDOWPOSCHANGED, [this](EventData&) {
+		if (layoutManager) layoutManager->doLayout();
 	});
 	// 这个由于需要修改返回值不能塞到InternalWndProc
 	addEventListener(WM_DPICHANGED, [this](EventData& ev) {
@@ -1064,16 +990,8 @@ void Window::m_onCreated() {
 				suggested->bottom - suggested->top,
 				SWP_NOZORDER | SWP_NOACTIVATE);
 		}
-		relayout();
 		ev.returnValue(0);
 	});
-	// 如果 set_layout 在窗口创建前就被调用，这里补上绑定。
-	if (layout_) {
-		const HWND h = hwnd;
-		layout_->set_reflow_handler([h]() {
-			if (h && IsWindow(h)) PostMessageW(h, WM_LAYOUT_INVALIDATED, 0, 0);
-		});
-	}
 }
 
 LRESULT Window::destroy_handler_internal(WPARAM wParam, LPARAM lParam) {

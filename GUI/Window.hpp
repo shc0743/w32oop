@@ -93,7 +93,7 @@ public:
 	friend class Window;
 };
 
-class LayoutNode;
+class LayoutManager;
 
 
 class Window : public w32Window {
@@ -222,8 +222,7 @@ protected:
 		HMENU hMenu = 0;
 	} *setup_info;
 
-	// 根布局节点。不拥有它：布局对象通常由派生窗口类持有。
-	LayoutNode* layout_ = nullptr;
+	LayoutManager* layoutManager = nullptr;
 
 	virtual void transfer_ownership() final {
 		_owner = GetCurrentThreadId();
@@ -235,10 +234,6 @@ private:
 	bool _is_compositioning = false;
 	bool _disable_framework_dpi_virtualization_for_this_window = false;
 	float _dpi_scale_factor = 1.0f;
-	// 创建时传入的逻辑尺寸，作为布局的「内容尺寸」。见 content_size()。
-	int _design_width = 0;
-	int _design_height = 0;
-	bool _relayout_running = false;
 	void _XxxInternalFixDpiForWindow();
 protected:
 	inline void set_framework_dpi_virtualization(bool enable) {
@@ -397,13 +392,6 @@ public:
 	virtual RECT rect();
 	virtual RECT client_rect();
 
-	// 布局需要「内容尺寸」时调用：这个窗口在自动尺寸下希望占多大（逻辑像素）。
-	// 默认返回创建时传入的宽高；内容驱动的自定义控件可以覆盖它。
-	[[nodiscard]] virtual SIZE content_size() const;
-
-	// 立即重排根布局。窗口尺寸变化和布局内容变化时会自动调用，一般不需要手动调。
-	void relayout();
-
 	virtual void center(HWND parent = NULL) final;
 	static void center(HWND, HWND parent);
 
@@ -459,7 +447,7 @@ protected:
 	virtual void override_style(LONG_PTR style) final;
 	virtual void override_style_ex(LONG_PTR styleEx) final;
 
-	virtual void set_layout(LayoutNode& root);
+	virtual void setLayoutManager(LayoutManager* lpLayoutManager);
 
 public:
 	// 发送消息到窗口

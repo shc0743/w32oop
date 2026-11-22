@@ -50,7 +50,6 @@ COMPILE_COMMON = [
     '/c',
     '/EHsc', '/permissive-', '/Z7', '/MT', '/std:c++20', '/D_UNICODE', '/DUNICODE', '/DNDEBUG',
     '/nologo',
-    '/utf-8',
     '/GS', '/GL', '/W4', '/Gy', '/Zc:wchar_t', '/Zc:inline', '/fp:precise',
     '/Qspectre', '/QIntel-jcc-erratum', '/Gm-', '/O2', '/Gd', '/Oi', '/guard:ehcont', '/guard:cf',
 ]

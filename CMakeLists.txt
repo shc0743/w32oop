@@ -20,18 +20,16 @@ option(W32OOP_ENABLE_SPECTRE "Enable /Qspectre Spectre mitigation" ON)
 option(W32OOP_ENABLE_JCC_ERRATUM "Enable /QIntel-jcc-erratum mitigation" ON)
 option(W32OOP_ENABLE_EHCONT "Compile and link with /guard:ehcont" ON)
 option(W32OOP_INSTALL "Generate install rules and package config files" ON)
-option(W32OOP_BUILD_TESTS "Build the headless layout tests" OFF)
 
 set(W32OOP_SOURCES
     Concurrency/EventObject.cpp
     Concurrency/Process.cpp
     Concurrency/Thread.cpp
     GUI/FoundationLib.cpp
-    GUI/FlexLayout.cpp
-    GUI/FlexSolver.cpp
     GUI/Menu.cpp
     GUI/TrayIcon.cpp
     GUI/Window.cpp
+    GUI/LayoutManager.cpp
     IO/File.cpp
     IO/PipeClient.cpp
     IO/PipeServer.cpp
@@ -113,21 +111,6 @@ target_link_libraries(w32oop PUBLIC
 
 if (W32OOP_ENABLE_PCH)
     target_precompile_headers(w32oop PRIVATE w32use.hpp)
-endif ()
-
-if (W32OOP_BUILD_TESTS)
-    enable_testing()
-    # 布局求解器不依赖 Windows，可以脱离窗口直接测试。
-    add_executable(w32oop_layout_tests
-        .test/layout/flex_solver_tests.cpp
-        GUI/FlexSolver.cpp
-    )
-    target_compile_features(w32oop_layout_tests PRIVATE cxx_std_20)
-    target_include_directories(w32oop_layout_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    if (MSVC)
-        target_compile_options(w32oop_layout_tests PRIVATE /W4 /permissive- /utf-8)
-    endif ()
-    add_test(NAME layout.flex_solver COMMAND w32oop_layout_tests)
 endif ()
 
 if (W32OOP_INSTALL)
