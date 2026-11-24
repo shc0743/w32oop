@@ -25,6 +25,8 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #include <Windows.h>
 #include <windowsx.h>
 
+#include "./version.hpp"
+
 
 #define w32oop_declare_exception_class_from(name, _Ty) class name##_exception : public _Ty { public: name##_exception(std::string d) : _Ty(d) {} name##_exception() : _Ty(( "Exception: " # name )) {} }
 #define w32oop_declare_exception_class(name) w32oop_declare_exception_class_from(name, w32oop_exception)

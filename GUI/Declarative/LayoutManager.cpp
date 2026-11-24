@@ -10,7 +10,7 @@ w32oop::ui::LayoutManager::LayoutManager()
 	: root_box_(make_unique<ui::FlexLayout>()) {
 }
 
-w32oop::ui::LayoutManager::~LayoutManager() = default;
+w32oop::ui::LayoutManager::~LayoutManager() { detach(); }
 
 void w32oop::ui::LayoutManager::setRenderer(std::function<VNode()> renderer) {
 	renderer_ = std::move(renderer);
@@ -28,12 +28,15 @@ void w32oop::ui::LayoutManager::attach(ui::Window* host) {
 }
 
 void w32oop::ui::LayoutManager::detach() {
+	if (root_box_) root_box_->clear();
 	reconciler_.reset();
 	host_ = nullptr;
 }
 
 void w32oop::ui::LayoutManager::requestLayout() {
 	if (!host_ || !host_->created()) return;
+	const HWND hwnd = static_cast<HWND>(*host_);
+	if (!hwnd || !IsWindow(hwnd)) return;
 	const RECT rc = host_->client_rect();
 	ui::LayoutRect area{ 0, 0, rc.right - rc.left, rc.bottom - rc.top };
 	if (area.width <= 0 || area.height <= 0) return;
@@ -100,6 +103,8 @@ void w32oop::ui::LayoutManager::invalidate() {
 	render_dirty_ = true;
 	if (rendering_) return;
 	if (!host_ || !host_->created()) return;
+	const HWND hwnd = static_cast<HWND>(*host_);
+	if (!hwnd || !IsWindow(hwnd)) return;
 	const RECT rc = host_->client_rect();
 	host_->post(WM_SIZE, SIZE_RESTORED, MAKELPARAM(rc.right - rc.left, rc.bottom - rc.top));
 }

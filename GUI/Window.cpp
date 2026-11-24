@@ -334,6 +334,7 @@ void Window::create() {
 		m_onCreated();
 		onCreated();
 		_created = true;
+		if (layoutManager) layoutManager->requestLayout();
 	}
 	catch (std::exception& exc) {
 		DestroyWindow(hwnd);
@@ -862,11 +863,14 @@ int Window::run(Window* dialog) {
 
 		HWND hRootWnd = NULL;
 		bool bUseDlg = (dialog != NULL);
+		BOOL error = 0;
 		while (1) {
 			if (bUseDlg) {
 				if (!dialog->is_alive()) break;
 			}
-			if (!GetMessageW(lpMsg, nullptr, 0, 0)) break;
+			error = GetMessageW(lpMsg, nullptr, 0, 0);
+			if (error == (BOOL)-1) return GetLastError();
+			if (!error) break;
 			if (dialogHandling || acceleratorHandling) {
 				hRootWnd = GetAncestor(lpMsg->hwnd, GA_ROOT);
 				if (hRootWnd == NULL) hRootWnd = lpMsg->hwnd;
@@ -999,6 +1003,7 @@ void Window::m_onCreated() {
 }
 
 LRESULT Window::destroy_handler_internal(WPARAM wParam, LPARAM lParam) {
+	layoutManager = nullptr;
 	// cleanups
 	onDestroy();
 	if (is_main_window) {

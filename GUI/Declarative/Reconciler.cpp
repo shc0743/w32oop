@@ -1,6 +1,6 @@
 ﻿#include "./Reconciler.hpp"
 #include "./Diff.hpp"
-#include "./LayoutProperties.hpp"
+#include "./FlexProperties.hpp"
 #include "./Widget.hpp"
 
 using namespace std;
@@ -304,7 +304,7 @@ namespace w32oop::ui::internal {
 		node.box->clear();
 		for (const auto& entry : node.vnode.props) {
 			if (!is_layout_property(entry.first.view())) continue;
-			if (!apply_layout_property(*node.box, entry.first.view(), entry.second)) {
+			if (!apply_flex_container_property(*node.box, entry.first.view(), entry.second)) {
 				debug_warn(L"bad value for layout property \"" + std::wstring(entry.first.view()) + L"\"");
 			}
 		}
@@ -314,7 +314,7 @@ namespace w32oop::ui::internal {
 				ui::FlexItem& item = node.box->add(*child->control);
 				for (const auto& entry : child->vnode.props) {
 					if (!is_layout_property(entry.first.view())) continue;
-					if (!apply_layout_property(item, entry.first.view(), entry.second)) {
+					if (!apply_flex_item_property(item, entry.first.view(), entry.second)) {
 						debug_warn(L"bad value for layout property \"" + std::wstring(entry.first.view()) + L"\"");
 					}
 				}
@@ -323,7 +323,7 @@ namespace w32oop::ui::internal {
 				ui::FlexItem& item = node.box->add(*child->box);
 				for (const auto& entry : child->vnode.props) {
 					if (!is_layout_property(entry.first.view())) continue;
-					if (!apply_layout_property(item, entry.first.view(), entry.second)) {
+					if (!apply_flex_item_property(item, entry.first.view(), entry.second)) {
 						debug_warn(L"bad value for layout property \"" + std::wstring(entry.first.view()) + L"\"");
 					}
 				}

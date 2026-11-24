@@ -18,6 +18,6 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #include "./Declarative/Property.hpp"
 #include "./Declarative/VNode.hpp"
 #include "./Declarative/Widget.hpp"
-#include "./Declarative/LayoutProperties.hpp"
+#include "./Declarative/FlexProperties.hpp"
 #include "./Declarative/Diff.hpp"
 #include "./Declarative/LayoutManager.hpp"

@@ -198,6 +198,10 @@ public:
 	static void set_default_font(std::wstring font_name = L"Consolas");
 	static void set_accelerator(HACCEL accelerator);
 
+	inline bool is_alive() const {
+		return hwnd && IsWindow(hwnd);
+	}
+
 private:
 	std::wstring class_name;
 	virtual void register_class_if_needed();
@@ -207,9 +211,7 @@ protected:
 	// 检查窗口句柄有效性
 	inline void validate_hwnd() const {
 		if (!hwnd) throw window_not_initialized_exception();
-	}
-	inline bool is_alive() const {
-		return hwnd && IsWindow(hwnd);
+		if (!is_alive()) throw window_illegal_state_exception();
 	}
 
 	virtual HWND new_window();
