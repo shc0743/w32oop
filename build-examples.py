@@ -7,6 +7,53 @@ from pathlib import Path
 import ctypes
 from ctypes import wintypes
 import hashlib
+import locale
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+_OUTPUT_LOCK = threading.Lock()
+DEFAULT_JOBS = os.cpu_count() or 1
+
+def write_output(text, stream=None):
+    if stream is None:
+        stream = sys.stdout
+    with _OUTPUT_LOCK:
+        stream.write(text)
+        stream.flush()
+
+def get_output_encoding(stream):
+    if sys.platform.startswith('win'):
+        code_page = ctypes.windll.kernel32.GetConsoleOutputCP()
+        if code_page:
+            return f'cp{code_page}'
+    return getattr(stream, 'encoding', None) or locale.getpreferredencoding(False)
+
+def run_build_command(cmd, task_number):
+    process = subprocess.Popen(
+        cmd,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    def forward_lines(pipe, stream):
+        encoding = get_output_encoding(stream)
+        for raw_line in iter(pipe.readline, b''):
+            line = raw_line.decode(encoding, errors='replace')
+            write_output(f'{task_number}> {line}', stream)
+        pipe.close()
+
+    readers = [
+        threading.Thread(target=forward_lines, args=(process.stdout, sys.stdout)),
+        threading.Thread(target=forward_lines, args=(process.stderr, sys.stderr)),
+    ]
+    for reader in readers:
+        reader.start()
+
+    result = process.wait()
+    for reader in readers:
+        reader.join()
+    return result
 
 def enable_vt_mode():
     """
@@ -50,7 +97,7 @@ COMPILE_COMMON = [
     '/c',
     '/EHsc', '/permissive-', '/Z7', '/MT', '/std:c++20', '/D_UNICODE', '/DUNICODE', '/DNDEBUG',
     '/nologo',
-    '/GS', '/GL', '/W4', '/Gy', '/Zc:wchar_t', '/Zc:inline', '/fp:precise',
+    '/GS', '/GL', '/W4', '/WX', '/Gy', '/Zc:wchar_t', '/Zc:inline', '/fp:precise',
     '/Qspectre', '/QIntel-jcc-erratum', '/Gm-', '/O2', '/Gd', '/Oi', '/guard:ehcont', '/guard:cf',
 ]
 
@@ -62,11 +109,13 @@ def make_compile_cmd(src, obj, include_dirs, cl_exe='cl.exe', extra_flags=()):
     cmd.append(src)
     return cmd
 
-def compile_to_objs(cpp_files, output_dir, include_dirs, cl_exe='cl.exe'):
+def compile_to_objs(cpp_files, output_dir, include_dirs, cl_exe='cl.exe', max_workers=None):
     """编译所有 .cpp 文件为 .obj 文件"""
-    obj_files = []
+    if max_workers is None:
+        max_workers = DEFAULT_JOBS
+
     os.makedirs(output_dir, exist_ok=True)
-    compiled_count = 0
+    compile_tasks = []
     skipped_count = 0
 
     for cpp_file in cpp_files:
@@ -80,41 +129,49 @@ def compile_to_objs(cpp_files, output_dir, include_dirs, cl_exe='cl.exe'):
         obj_dir = os.path.dirname(obj_path)
         os.makedirs(obj_dir, exist_ok=True)
 
-        # 检查是否需要重新编译
-        need_compile = True
-        print(f"\n\033[4m\033[96m{rel_path} --> {file_name}@{hash_path}.obj\033[0m", end='')
         if os.path.exists(obj_path):
             src_mtime = os.path.getmtime(cpp_file)
             obj_mtime = os.path.getmtime(obj_path)
             if src_mtime < obj_mtime:
-                # 源文件比目标文件旧，跳过编译
-                need_compile = False
                 skipped_count += 1
-                print(f" \033[93mNot Modified\033[0m")
+                write_output(f"\033[4m\033[96m{rel_path}\033[0m \033[93mNot Modified\033[0m\n")
+                continue
 
-        if need_compile:
-            # 构建编译命令
-            cmd = make_compile_cmd(cpp_file, obj_path, include_dirs, cl_exe)
+        task_number = len(compile_tasks) + 1
+        write_output(f"\n\033[4m\033[96m{task_number}> {rel_path} --> {file_name}@{hash_path}.obj\033[0m\n")
+        cmd = make_compile_cmd(cpp_file, obj_path, include_dirs, cl_exe)
 
-            # 添加包含目录
-            for include_dir in include_dirs:
-                cmd.append(f'/I"{include_dir}"')
+        # Keep the existing quoted include argument for compatibility with the current script.
+        for include_dir in include_dirs:
+            cmd.append(f'/I"{include_dir}"')
 
-            print('')
+        compile_tasks.append((task_number, cpp_file, cmd))
 
-            # 执行编译
-            result = subprocess.call(cmd)
+    def compile_one(task):
+        task_number, cpp_file, cmd = task
+        try:
+            result = run_build_command(cmd, task_number)
+        except OSError as error:
+            write_output(f"{task_number}> 编译器启动失败: {error}\n")
+            return False
 
-            if result != 0:
-                print(f"编译错误: {cpp_file}")
-                return False
-            else:
-                compiled_count += 1
+        if result != 0:
+            write_output(f"{task_number}> 编译错误: {cpp_file} ({result})\n")
+            return False
+        return True
 
-        obj_files.append(obj_path)
+    success = True
+    compiled_count = 0
+    if compile_tasks:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(compile_one, task) for task in compile_tasks]
+            for future in as_completed(futures):
+                task_success = future.result()
+                success = task_success and success
+                compiled_count += task_success
 
-    print(f"\n\033[34m编译统计: {compiled_count} 个文件重新编译, {skipped_count} 个文件跳过\033[0m")
-    return True
+    write_output(f"\n\033[34m编译统计: {compiled_count} 个文件重新编译, {skipped_count} 个文件跳过\033[0m\n")
+    return success
 
 sys_lib = [
     'kernel32.lib',
@@ -131,93 +188,105 @@ sys_lib = [
     'odbccp32.lib',
 ]
 
-def build_examples(examples_dir, obj_dir, link_exe='link.exe'):
+def build_examples(examples_dir, obj_dir, link_exe='link.exe', max_workers=None):
     """构建所有示例程序"""
     if not os.path.exists(examples_dir):
         print(f"示例目录不存在: {examples_dir}")
         return True
+    if max_workers is None:
+        max_workers = DEFAULT_JOBS
 
-    success = True
-    example_count = 0
-
-    # 遍历所有示例目录
+    examples = []
     for root, dirs, files in os.walk(examples_dir):
-        # 只处理包含 demo.cpp 的目录
         if 'demo.cpp' in files and ('deprecated' not in root):
-            demo_cpp = os.path.join(root, 'demo.cpp')
-            example_name = os.path.basename(root)
-            exe_output = os.path.join(root, f"{example_name}.exe")
-            
-            # 为每个示例创建独立的obj目录
-            example_obj_dir = os.path.join(obj_dir, '..', "examples", example_name)
-            os.makedirs(example_obj_dir, exist_ok=True)
+            examples.append((root, os.path.join(root, 'demo.cpp')))
 
-            print(f"\n\033[4m\033[96m{example_name}\033[0m")
+    library_obj_files = []
+    for root_obj, _, obj_files in os.walk(obj_dir):
+        library_obj_files.extend(
+            os.path.join(root_obj, obj_file)
+            for obj_file in obj_files
+            if obj_file.endswith('.obj')
+        )
 
-            # 编译 demo.cpp
-            demo_obj = os.path.join(example_obj_dir, "demo.obj")
+    root_dir = os.getcwd()
 
-            compile_cmd = make_compile_cmd(demo_cpp, demo_obj, include_dirs=[os.getcwd()], extra_flags=())
-            print(f'\033[94m{' '.join(compile_cmd)}\033[0m')
+    def build_one(task):
+        task_number, root, demo_cpp = task
+        example_name = os.path.basename(root)
+        exe_output = os.path.join(root, f"{example_name}.exe")
+        example_obj_dir = os.path.join(obj_dir, '..', "examples", example_name)
+        os.makedirs(example_obj_dir, exist_ok=True)
 
-            # 添加包含目录 (包括项目根目录)
-            root_dir = os.getcwd()
-            compile_cmd.append(f'/I"{root_dir}"')
+        write_output(f"\n\033[4m\033[96m{task_number}> {example_name}\033[0m\n")
+        demo_obj = os.path.join(example_obj_dir, "demo.obj")
+        compile_cmd = make_compile_cmd(demo_cpp, demo_obj, include_dirs=[root_dir], extra_flags=())
+        compile_cmd.append(f'/I"{root_dir}"')
+        write_output(f"\033[94m{task_number}> {' '.join(compile_cmd)}\033[0m\n")
 
-            # 执行编译
-            compile_result = subprocess.call(compile_cmd)
-            if compile_result != 0:
-                print(f"\033[31m编译 demo.cpp 失败: {demo_cpp}\033[0m")
-                success = False
-                continue
+        try:
+            compile_result = run_build_command(compile_cmd, task_number)
+        except OSError as error:
+            write_output(f"{task_number}> 编译器启动失败: {error}\n")
+            return False
+        if compile_result != 0:
+            write_output(f"\033[31m{task_number}> 编译 demo.cpp 失败: {demo_cpp} ({compile_result})\033[0m\n")
+            return False
 
-            # 只链接库的obj文件和当前示例的demo.obj
-            all_obj_files = []
-            # 添加库的obj文件
-            for root_obj, _, obj_files in os.walk(os.path.join(obj_dir)):
-                for obj_file in obj_files:
-                    if obj_file.endswith('.obj'):
-                        all_obj_files.append(os.path.join(root_obj, obj_file))
-            # 添加当前示例的demo.obj
-            all_obj_files.append(demo_obj)
+        link_cmd = [
+            link_exe,
+            '/OUT:' + exe_output,
+            '/MACHINE:X64',
+            '/MANIFEST:EMBED',
+            f'/MANIFESTINPUT:"{root_dir}/.examples/input.manifest"',
+            '/nologo',
+            '/INCREMENTAL:NO',
+            '/MANIFESTUAC:level="asInvoker" uiAccess="false"',
+            '/NXCOMPAT',
+            '/DYNAMICBASE',
+            '/OPT:REF',
+            '/OPT:ICF',
+            '/LTCG',
+            '/guard:ehcont', '/guard:cf',
+            '/RELEASE', '/Brepro',
+        ] + library_obj_files + [demo_obj] + sys_lib
 
-            # 构建链接命令
-            link_cmd = [
-                link_exe,
-                '/OUT:' + exe_output,
-                '/MACHINE:X64',
-                '/MANIFEST:EMBED',
-                f'/MANIFESTINPUT:"{root_dir}/.examples/input.manifest"',
-                '/nologo',
-                '/INCREMENTAL:NO',
-                '/MANIFESTUAC:level="asInvoker" uiAccess="false"',
-                '/NXCOMPAT',
-                '/DYNAMICBASE',
-                '/OPT:REF',
-                '/OPT:ICF',
-                '/LTCG',
-                '/guard:ehcont', '/guard:cf',
-                '/RELEASE', '/Brepro',
-            ] + all_obj_files + sys_lib
+        write_output(f"\033[94m{task_number}> {' '.join(link_cmd)}\033[0m\n")
+        try:
+            link_result = run_build_command(link_cmd, task_number)
+        except OSError as error:
+            write_output(f"{task_number}> 链接器启动失败: {error}\n")
+            return False
 
-            # 执行链接
-            print(f"\033[94m{' '.join(link_cmd)}\033[0m")
-            link_result = subprocess.call(link_cmd)
+        if link_result != 0:
+            write_output(f"\033[31m{task_number}> 链接失败: {example_name} ({link_result})\033[0m\n")
+            return False
 
-            if link_result != 0:
-                print(f"\033[31m链接失败: {example_name} ({link_result})\033[0m")
-                success = False
-            else:
-                print(f"\033[92m成功生成: {exe_output}\033[0m")
-                example_count += 1
+        write_output(f"\033[92m{task_number}> 成功生成: {exe_output}\033[0m\n")
+        return True
 
-    print(f"\n示例构建完成: 成功 {example_count} 个")
+    tasks = [
+        (task_number, root, demo_cpp)
+        for task_number, (root, demo_cpp) in enumerate(examples, start=1)
+    ]
+    example_count = 0
+    if tasks:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(build_one, task) for task in tasks]
+            for future in as_completed(futures):
+                example_count += future.result()
+
+    success = example_count == len(examples)
+    write_output(f"\n示例构建完成: 成功 {example_count} 个\n")
     return success
 
 def main():
     parser = argparse.ArgumentParser(description='w32oop 项目构建系统')
     parser.add_argument('--clean', action='store_true', help='清理构建缓存')
+    parser.add_argument('--jobs', type=int, default=DEFAULT_JOBS, help='最大并发构建任务数')
     args = parser.parse_args()
+    if args.jobs < 1:
+        parser.error('--jobs 必须是大于 0 的整数')
 
     # 设置路径
     project_root = os.getcwd()
@@ -242,14 +311,14 @@ def main():
     print("\n\033[34m编译库文件...\033[0m")
     print('* 注: 已知问题: 目前只能检测到 .cpp 文件的修改，无法检测 .h 及其他依赖文件的修改，请手动清理缓存以完全重新编译')
     include_dirs = [project_root]  # 添加项目根目录作为包含路径
-    if not compile_to_objs(cpp_files, obj_dir, include_dirs):
+    if not compile_to_objs(cpp_files, obj_dir, include_dirs, max_workers=args.jobs):
         print("\033[31m编译库文件失败，终止构建\033[0m")
         sys.exit(1)
 
     # 步骤 3: 构建示例
     print("\n\033[34m构建示例程序...\033[0m")
     examples_dir = os.path.join(project_root, '.examples')
-    success_count = build_examples(examples_dir, obj_dir)
+    success_count = build_examples(examples_dir, obj_dir, max_workers=args.jobs)
 
     # 统计构建时间
     elapsed = time.time() - start_time
