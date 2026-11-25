@@ -10,11 +10,10 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #endif
 
 namespace w32oop::def {
-#ifdef NT_SUCCESS
-#undef NT_SUCCESS
-#endif
+#ifndef NT_SUCCESS
     static constexpr inline NTSTATUS NT_SUCCESS(NTSTATUS Status) {
         return ((NTSTATUS)(Status)) >= 0;
     }
+#endif
 }
 

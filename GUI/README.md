@@ -2,6 +2,25 @@
 
 A set of utilities to simplify GUI programming.
 
+### Recent Breaking Changes
+
+We now disable the `force_focus` by default in order to ease the VirusTotal wrong detection in commit `d84ac02ec754de737cb28b6d4278d4953b99a684`.
+
+[Wrong detection](https://www.virustotal.com/gui/file/5d1e3e8e9d1013e6c07907b731311b16a8d549528599518b7706c499d9066cef)
+[Wrong detection](https://www.virustotal.com/gui/file/86a12cdd8171a17958de56f9f4465eba1a9800644f4341d99d9832191329631a)
+[Wrong detection](https://www.virustotal.com/gui/file/33c1b70e809cada9f43801b1568e08b028441e2714f8bab888f034e13b5cda9c)
+
+```cpp
+bool Window::force_focus(DWORD timeout) {
+#ifdef W32OOP_GUI_USE_FORCE_FOCUS
+// Previous Code
+#endif
+	return focus();
+}
+```
+
+Obviously, if you have to use `force_focus`, you should define the `W32OOP_GUI_USE_FORCE_FOCUS` in your project configuration.
+
 ## Usage
 
 1. Include the `<w32use.hpp>` in your project

@@ -125,7 +125,7 @@ namespace foundation {
 // Basic Static class. Directly uses system Static class, no extra windows.
 class Static : public BaseSystemWindow {
 public:
-	static const LONG STYLE = WS_CHILD | WS_VISIBLE;
+	static const LONG STYLE = WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS;
 	Static(HWND parent, const std::wstring& text, int width, int height, int x = 0, int y = 0, LONG style = STYLE)
 		: BaseSystemWindow(parent, text, width, height, x, y, style) {
 	}
@@ -150,7 +150,7 @@ protected:
 // Extended static control, with supports like customize colors. A thin wrapper is applied.
 class StaticEx : public ChildControlWindow {
 public:
-	static const LONG STYLE = WS_CHILD | WS_VISIBLE;
+	static const LONG STYLE = WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS;
 	StaticEx(HWND parent, const std::wstring& text, int width, int height, int x = 0, int y = 0, LONG style = STYLE)
 		: ChildControlWindow(parent, text, width, height, x, y, style) {
 	}
@@ -190,7 +190,7 @@ public:
 
 class Edit : public BaseSystemWindow {
 public:
-	static const LONG STYLE = WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP | ES_AUTOHSCROLL;
+	static const LONG STYLE = WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_BORDER | WS_TABSTOP | ES_AUTOHSCROLL;
 	Edit(HWND parent, const std::wstring& text, int width, int height, int x = 0, int y = 0, LONG style = STYLE)
 		: BaseSystemWindow(parent, text, width, height, x, y, style) {
 	}
@@ -275,7 +275,7 @@ protected:
 
 class Button : public BaseSystemWindow {
 public:
-	static const LONG STYLE = WS_CHILD | BS_CENTER | BS_PUSHBUTTON | WS_VISIBLE | WS_TABSTOP;
+	static const LONG STYLE = WS_CHILD | BS_CENTER | BS_PUSHBUTTON | WS_VISIBLE | WS_CLIPSIBLINGS | WS_TABSTOP;
 	Button(HWND parent, const std::wstring& text, int width, int height, int x = 0, int y = 0, int ctlid = 0, LONG style = STYLE)
 		: BaseSystemWindow(parent, text, width, height, x, y, style, ctlid) {}
 	Button() : BaseSystemWindow(0, L"", 0, 0, 1, 1, STYLE) {}
@@ -324,7 +324,7 @@ protected:
 
 class CheckBox : public Button {
 public:
-	static constexpr LONG STYLE = WS_CHILD | BS_AUTOCHECKBOX | WS_VISIBLE | WS_TABSTOP;
+	static constexpr LONG STYLE = WS_CHILD | BS_AUTOCHECKBOX | WS_VISIBLE | WS_CLIPSIBLINGS | WS_TABSTOP;
 	CheckBox(HWND parent, const std::wstring& text, int width, int height, int x = 0, int y = 0, int ctlid = 0, LONG style = STYLE)
 		: Button(parent, text, width, height, x, y, ctlid, style) {
 	}
@@ -372,7 +372,7 @@ private:
 
 class StatusBar : public BaseSystemWindow {
 public:
-	static const LONG STYLE = WS_CHILD | WS_VISIBLE;
+	static const LONG STYLE = WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS;
 	StatusBar(HWND parent, const std::wstring& text, int width, int height, int x = 0, int y = 0, LONG style = STYLE)
 		: BaseSystemWindow(parent, text, width, height, x, y, style) {
 	}
@@ -415,7 +415,7 @@ protected:
 
 class TrackBar : public BaseSystemWindow {
 public:
-	static const LONG STYLE = WS_CHILD | WS_VISIBLE | TBS_ENABLESELRANGE | TBS_NOTIFYBEFOREMOVE;
+	static const LONG STYLE = WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TBS_ENABLESELRANGE | TBS_NOTIFYBEFOREMOVE;
 	TrackBar(HWND parent, int width, int height, int x = 0, int y = 0, LONG style = STYLE)
 		: BaseSystemWindow(parent, L"", width, height, x, y, style) {
 	}
@@ -488,7 +488,7 @@ class InputDialog : public Window {
 public:
 	InputDialog(std::wstring title = L"Input", int width = 320, int height = 145) :
 		Window(title, (int)(width * w32oop::ui::internal::system_dpi_scale_factor() + 0.5f),
-			(int)(height * w32oop::ui::internal::system_dpi_scale_factor() + 0.5f), 0, 0, WS_POPUP | WS_SYSMENU | WS_SIZEBOX),
+			(int)(height * w32oop::ui::internal::system_dpi_scale_factor() + 0.5f), 0, 0, WS_POPUP | WS_SYSMENU | WS_SIZEBOX | WS_CLIPCHILDREN),
 		m_scale((float)w32oop::ui::internal::system_dpi_scale_factor()),
 		_logical_width(width), _logical_height(height)
 	{

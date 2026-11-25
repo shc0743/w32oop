@@ -24,11 +24,7 @@ set(W32OOP_SOURCES
     Concurrency/Process.cpp
     Concurrency/Thread.cpp
     GUI/FoundationLib.cpp
-    GUI/Declarative/Diff.cpp
-    GUI/Declarative/LayoutManager.cpp
-    GUI/Declarative/Reconciler.cpp
-    GUI/Layout/FlexLayout.cpp
-    GUI/Layout/FlexSolver.cpp
+    GUI/LayoutManager.cpp
     GUI/Menu.cpp
     GUI/TrayIcon.cpp
     GUI/Window.cpp

@@ -10,7 +10,6 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #endif
 #include "./def.hpp"
 #include "../Utility/RAII.hpp"
-#include <array>
 #pragma region internal macros
 #define package namespace
 #define declare {

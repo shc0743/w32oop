@@ -15,6 +15,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #include <utility>
 #include <memory>
 #include <vector>
+#include <array>
 #include <map>
 #include <algorithm>
 #include <functional>

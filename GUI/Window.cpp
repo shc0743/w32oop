@@ -1,6 +1,5 @@
 ﻿#include "Window.hpp"
-#include "Layout/LayoutNode.hpp"
-#include "Declarative/LayoutManager.hpp"
+#include "LayoutManager.hpp"
 #include "../Utility/StringUtil/converts.hpp"
 #include "../System/Hooks.hpp"
 using namespace std;
@@ -334,7 +333,7 @@ void Window::create() {
 		m_onCreated();
 		onCreated();
 		_created = true;
-		if (layoutManager) layoutManager->requestLayout();
+		if (layoutManager) layoutManager->doLayout();
 	}
 	catch (std::exception& exc) {
 		DestroyWindow(hwnd);
@@ -982,7 +981,7 @@ void Window::m_onCreated() {
 	SendMessageW(hwnd, WM_SETFONT, (WPARAM)get_font(), 0);
 	addEventListener(WM_SIZE, [this](EventData& ev) {
 		if (ev.hwnd != hwnd) return;
-		if (layoutManager) layoutManager->requestLayout();
+		if (layoutManager) layoutManager->doLayout();
 	});
 	// 这个由于需要修改返回值不能塞到InternalWndProc
 	addEventListener(WM_DPICHANGED, [this](EventData& ev) {
@@ -997,7 +996,7 @@ void Window::m_onCreated() {
 				suggested->bottom - suggested->top,
 				SWP_NOZORDER | SWP_NOACTIVATE);
 		}
-		if (layoutManager) layoutManager->requestLayout();
+		if (layoutManager) layoutManager->doLayout();
 		ev.returnValue(0);
 	});
 }
