@@ -31,9 +31,6 @@ using namespace w32oop::concurrency;
 
 
 #ifndef W32USE_NO_GUI
-// Use reactive
-#include "./Reactive/def.hpp"
-
 // Use GUI
 #include "./GUI/Window.hpp"
 #include "./GUI/LayoutManager.hpp"

@@ -18,6 +18,7 @@ option(W32OOP_ENABLE_JCC_ERRATUM "Enable /QIntel-jcc-erratum mitigation" ON)
 option(W32OOP_ENABLE_EHCONT "Compile and link with /guard:ehcont" ON)
 option(W32OOP_ENABLE_DYNAMIC_CODE_GENERATION "Enable dynamic code generation" OFF)
 option(W32OOP_INSTALL "Generate install rules and package config files" ON)
+option(W32OOP_ENABLE_AGGRESSIVE_FEATURES "Enable aggressive features" OFF)
 
 set(W32OOP_SOURCES
     Concurrency/EventObject.cpp
@@ -82,6 +83,9 @@ target_compile_features(w32oop PUBLIC cxx_std_20)
 target_compile_definitions(w32oop PUBLIC UNICODE _UNICODE)
 if (W32OOP_ENABLE_DYNAMIC_CODE_GENERATION)
     target_compile_definitions(w32oop PRIVATE W32OOP_HOOKS_ENABLE_DYNAMIC)
+endif ()
+if (W32OOP_ENABLE_AGGRESSIVE_FEATURES)
+    target_compile_definitions(w32oop PRIVATE W32OOP_GUI_USE_FORCE_FOCUS)
 endif ()
 target_include_directories(w32oop PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
