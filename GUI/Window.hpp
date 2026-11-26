@@ -147,10 +147,11 @@ protected:
 	};
 private:
 	static std::unordered_map<HWND, Window*> managed; // Internal -- DO NOT access it
-	static std::recursive_mutex managed_lock;
+	static SRWLOCK managed_lock;
 	static SRWLOCK default_font_lock;
 	static Font default_font;
 	static std::array<long long, Option_Count> global_options;
+	static SRWLOCK global_options_lock;
 	static std::map<HotKeyOptions, std::function<void(HotKeyProcData&)>> hotkey_handlers;
 	static std::recursive_mutex hotkey_handlers_mutex;
 
@@ -160,15 +161,17 @@ protected:
 public:
 	static inline void set_global_option(GlobalOptions option, long long value) {
 		if (option < 0 || option >= Option_Count) return;
+		util::SRWLockGuard gg(&global_options_lock, util::SRWLockGuard::Exclusive);
 		global_options[option] = value;
 	}
 	static inline long long get_global_option(GlobalOptions option) {
 		if (option < 0 || option >= Option_Count) return 0;
+		util::SRWLockGuard gg(&global_options_lock, util::SRWLockGuard::Shared);
 		return global_options[option];
 	}
 	static inline bool is_framework_window(HWND hwnd) {
 		if (!IsWindow(hwnd)) return false;
-		std::lock_guard gg(managed_lock);
+		util::SRWLockGuard gg(&managed_lock, util::SRWLockGuard::Shared);
 		return managed.contains(hwnd);
 	}
 
@@ -194,6 +197,7 @@ protected:
 	// 要获取字体包装对象，请使用 get_font_object
 	virtual HFONT get_render_font() {
 		validate_hwnd();
+		validate_thread();
 		return window_font.get();
 	}
 
@@ -216,9 +220,14 @@ private:
 	DWORD _owner = 0;
 
 protected:
-	// 检查窗口句柄有效性
+	// 检查窗口句柄有效性，大多数窗口操作都会进行此检查；窗口没有创建和已经销毁会产生不同的异常类型，
+	// 业务逻辑在达到一定复杂度后应该处理此类异常而不是假设窗口状态
+	// 如果窗口正在销毁时试图进行窗口操作，可能遇到 window_illegal_state_exception
 	inline void validate_hwnd() const {
-		if (!hwnd) throw window_not_initialized_exception();
+		if (!hwnd) {
+			if (created()) throw window_already_destroyed_exception();
+			else throw window_not_initialized_exception();
+		}
 		if (!is_alive()) throw window_illegal_state_exception();
 	}
 
@@ -283,6 +292,16 @@ public:
 		return _owner;
 	}
 
+protected:
+	// 此函数只检查线程相关性，不检查窗口有效性，也就是说如果窗口尚未创建（所有者未设置），此函数不会产生异常，
+	// 这是预期的行为；并不是每一个窗口操作都必须在窗口所属线程中进行，诸如设置文本等 Windows 管理的、不涉及
+	// C++ 状态的功能，以及已经通过锁或互斥量等方式确保线程安全性的功能等均不需要做此检查
+	virtual void validate_thread() const {
+		if (owner() && GetCurrentThreadId() != owner()) {
+			throw window_dangerous_thread_operation_exception("Not allowed to call this method outside the owner thread!");
+		}
+	}
+
 public:
 	long long user = 0; // 用户数据
 
@@ -298,7 +317,7 @@ public:
 		LONG styleEx = 0,
 		HMENU hMenu = nullptr
 	) final;
-	virtual bool created() final;
+	virtual bool created() const final;
 
 	// 添加子窗口（类似appendChild）
 	virtual void append(const Window& child) {
@@ -317,7 +336,7 @@ public:
 		validate_hwnd();
 		HWND parent = GetParent(hwnd);
 		if (!parent) throw window_has_no_parent_exception();
-		std::lock_guard gg(managed_lock);
+		util::SRWLockGuard gg(&managed_lock, util::SRWLockGuard::Shared);
 		if (managed.contains(parent)) return *(managed.at(parent));
 		throw window_parent_not_managed_exception();
 	}
@@ -325,12 +344,12 @@ public:
 		validate_hwnd();
 		HWND parent = GetParent(hwnd);
 		if (!parent) throw window_has_no_parent_exception();
-		std::lock_guard gg(managed_lock);
+		util::SRWLockGuard gg(&managed_lock, util::SRWLockGuard::Shared);
 		if (managed.contains(parent)) return *(managed.at(parent));
 		throw window_parent_not_managed_exception();
 	}
 
-	inline bool is_compositioning() const {
+	inline bool is_compositioning() const noexcept {
 		return _is_compositioning;
 	}
 
@@ -446,10 +465,12 @@ public:
 	/// @deprecated This function has been deprecated. Please use get_font_object and set_font_object to get better experience
 	virtual void font(HFONT font);
 
-	inline const Font& get_font_object() const { return window_font; }
-	inline Font& get_font_object() { return window_font; }
-	inline void set_font_object(const Font& font) { window_font = font; update_font(); }
-	inline void set_font_object(Font&& font) { window_font = font; update_font(); }
+	// 只能在窗口线程中调用这些与窗口字体相关的函数，因为该对象不属于 Windows 而是属于 C++ 并且没有锁
+	inline const Font& get_font_object() const { validate_thread(); return window_font; }
+	inline Font& get_font_object() { validate_thread(); return window_font; }
+	inline void set_font_object(const Font& font) { validate_thread(); window_font = font; update_font(); }
+	inline void set_font_object(Font&& font) { validate_thread(); window_font = font; update_font(); }
+	// 只能在窗口线程中调用此函数
 	virtual void update_font();
 
 	virtual void add_style(LONG_PTR style) final;
@@ -458,6 +479,7 @@ public:
 	virtual void remove_style_ex(LONG_PTR styleEx) final;
 
 protected:
+	// Windows 要求窗口销毁只能在创建窗口的线程中进行；不应以任何方式试图绕过此限制（如，直接使用 DestroyWindow(hwnd) ——那样同样会失败）
 	virtual void destroy();
 
 	virtual void override_style(LONG_PTR style) final;
@@ -469,7 +491,7 @@ public:
 	// 发送消息到窗口
 	virtual LRESULT send(UINT msg, WPARAM wParam = 0, LPARAM lParam = 0) const;
 	virtual BOOL post(UINT msg, WPARAM wParam = 0, LPARAM lParam = 0) const;
-	// 简化的事件模型，暂时只有冒泡（bubble）模式，不支持捕获（capture）模式
+	// 简化的事件模型，暂时只有冒泡（bubble）模式，不支持捕获（capture）模式；请始终在与窗口相同的线程中分派事件
 	virtual LRESULT dispatchEvent(EventData data) final;
 protected:
 	// 默认处理程序
@@ -525,7 +547,7 @@ protected:
 	template<typename PThis> requires std::is_base_of_v<Window, PThis>
 	inline void invokeLater(void(*cb)(PThis*, EventData&)) {
 		validate_hwnd();
-		if (GetCurrentThreadId() != _owner) {
+		if (GetCurrentThreadId() != owner()) {
 			throw window_dangerous_thread_operation_exception("Not allowed to change event handlers outside the owner thread!");
 		}
 		// 擦除类型以获取效率

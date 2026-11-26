@@ -46,6 +46,7 @@ namespace w32oop::exceptions {
     w32oop_declare_exception_class_from(window, ui_exception);
     w32oop_declare_exception_class_from(window_not_initialized, window_exception);
     w32oop_declare_exception_class_from(window_already_initialized, window_exception);
+    w32oop_declare_exception_class_from(window_already_destroyed, window_exception);
     w32oop_declare_exception_class_from(window_illegal_state, window_exception);
     w32oop_declare_exception_class_from(window_class_registration_failure, window_exception);
     w32oop_declare_exception_class_from(window_creation_failure, window_exception);

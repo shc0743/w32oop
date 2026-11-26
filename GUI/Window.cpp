@@ -23,8 +23,9 @@ std::vector<HWND> w32oop::ui::GetAllChildWindows(HWND hParent) {
 
 
 unordered_map<HWND, Window*> Window::managed;
-std::recursive_mutex Window::managed_lock;
+SRWLOCK Window::managed_lock = SRWLOCK_INIT;
 std::array<long long, Window::Option_Count> Window::global_options{};
+SRWLOCK Window::global_options_lock = SRWLOCK_INIT;
 Font Window::default_font;
 SRWLOCK Window::default_font_lock = SRWLOCK_INIT;
 map<Window::HotKeyOptions, function<void(Window::HotKeyProcData&)>> Window::hotkey_handlers;
@@ -267,7 +268,7 @@ WINDOW_PROCESS_OBJECT_MEMBERS(w32oop_ui_window_move_ctor_object)
 {
 	WINDOW_PROCESS_VALUE_MEMBERS();
 	if (hwnd) {
-		lock_guard gg(managed_lock);
+		SRWLockGuard gg(&managed_lock, SRWLockGuard::Exclusive);
 		managed[hwnd] = this;
 		SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 	}
@@ -285,7 +286,7 @@ Window& Window::operator=(Window&& other) noexcept {
 
 	// 更新窗口的用户数据指针
 	if (hwnd) {
-		lock_guard gg(managed_lock);
+		SRWLockGuard gg(&managed_lock, SRWLockGuard::Exclusive);
 		managed[hwnd] = this;
 		SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 	}
@@ -319,14 +320,14 @@ void Window::create() {
 		delete setup_info;
 		setup_info = nullptr;
 		{
-			lock_guard gg(managed_lock);
+			SRWLockGuard gg(&managed_lock, SRWLockGuard::Exclusive);
 			managed[hwnd] = this;
 		}
 		if (!window_font.is_valid()) {
 			bool isValid = false;
 			{
 				SRWLockGuard gg(&default_font_lock, SRWLockGuard::Shared);
-				isValid = default_font.is_valid();
+				isValid = default_font.now_valid();
 			}
 			if (!isValid) set_default_font();
 			SRWLockGuard gg(&default_font_lock, SRWLockGuard::Shared);
@@ -365,7 +366,7 @@ void Window::create(
 	return create();
 }
 
-bool Window::created() {
+bool Window::created() const {
 	return _created;
 }
 
@@ -503,7 +504,7 @@ void Window::text(const std::wstring& text) {
 	validate_hwnd();
 	DWORD result = 0;
 	DWORD_PTR pResult = DWORD_PTR(&result);
-	SendMessageTimeoutW(hwnd, WM_SETTEXT, 0, (LPARAM)text.c_str(), SMTO_ERRORONEXIT, 500, &pResult);
+	SendMessageTimeoutW(hwnd, WM_SETTEXT, 0, (LPARAM)text.c_str(), SMTO_ERRORONEXIT, 5000, &pResult);
 }
 
 void Window::text(const std::string& text) {
@@ -522,6 +523,7 @@ void Window::font(HFONT font) {
 
 void Window::update_font() {
 	validate_hwnd();
+	validate_thread();
 	get_font_object().scale_factor(get_dpi_scale_factor());
 	SendMessage(hwnd, WM_SETFONT, (WPARAM)get_render_font(), TRUE);
 }
@@ -552,6 +554,7 @@ void Window::remove_style_ex(LONG_PTR styleEx) {
 
 void Window::destroy() {
 	validate_hwnd();
+	validate_thread();
 	if (!DestroyWindow(hwnd)) {
 		if (get_global_option(Option_DebugMode)) {
 			OutputDebugStringW(std::format(L"[w32oop::ui::Window] Failed to destroy window {}", (LPVOID)hwnd).c_str());
@@ -572,6 +575,7 @@ void Window::override_style_ex(LONG_PTR styleEx) {
 }
 
 void Window::setLayoutManager(LayoutManager* lpLayoutManager) {
+	validate_thread(); // 特意不检查hwnd，因为布局管理器被设计为可安全地在窗口创建前调用
 	if (layoutManager && layoutManager != lpLayoutManager) layoutManager->detach();
 	layoutManager = lpLayoutManager;
 	if (layoutManager) layoutManager->attach(this);
@@ -662,7 +666,7 @@ LRESULT Window::_MyWndProc(UINT msg, WPARAM wParam, LPARAM lParam) {
 		try {
 			Window* target;
 			{
-				lock_guard gg(managed_lock);
+				SRWLockGuard gg(&managed_lock, SRWLockGuard::Shared);
 				target = managed.at(targetWindow);
 			}
 			// TODO: 这里可能在极端条件下锁解锁但窗口被销毁，但如果直接整体锁定又可能导致死锁
@@ -689,7 +693,7 @@ void Window::_MyInternalWndProc(UINT msg, WPARAM wParam, LPARAM lParam) {
 			for (auto hwnd : controls) try {
 				HWND w;
 				{
-					lock_guard gg(managed_lock);
+					SRWLockGuard gg(&managed_lock, SRWLockGuard::Shared);
 					if (!managed.contains(hwnd)) continue;
 					w = *managed.at(hwnd);
 				}
@@ -736,6 +740,9 @@ LRESULT Window::dispatchMessageToWindowAndGetResult(msg_t msg, WPARAM wParam, LP
 }
 
 LRESULT Window::dispatchEvent(EventData data) {
+	// 这是公共API，所以validate；dispatch的私有API不进行检查以优化性能
+	validate_hwnd();
+	validate_thread(); // 事件分派只能在同一个线程中进行，否则事件处理器可能在意料外的上下文中运行
 	return dispatchEvent(data, false, true);
 }
 
@@ -764,8 +771,10 @@ LRESULT Window::dispatchEvent(EventData& data, bool isTrusted, bool shouldBubble
 	shouldBubble = shouldBubble && data.bubble;
 	dispatchEventForWindow(data);
 	if (!data._propagationStopped) {
-		if (shouldBubble && has_parent()) try {
-			return parent().dispatchEvent(data);
+		if (shouldBubble && has_managed_parent()) try {
+			auto& p = parent();
+			// bubbles only when the thread is the same, so the message handlers always run in the expected context
+			if (p.owner() == owner()) return p.dispatchEvent(data);
 		}
 		catch (...) {}
 	}
@@ -823,7 +832,7 @@ Window::~Window() {
 	}
 	if (!hwnd) return;
 	{
-		lock_guard gg(managed_lock);
+		SRWLockGuard gg(&managed_lock, SRWLockGuard::Exclusive);
 		if (managed.contains(hwnd)) {
 			managed.erase(hwnd);
 		}
@@ -1025,7 +1034,7 @@ LRESULT Window::destroy_handler_internal(WPARAM wParam, LPARAM lParam) {
 	remove_all_hot_key_on_window();
 	// 清理 managed
 	{
-		lock_guard gg(managed_lock);
+		SRWLockGuard gg(&managed_lock, SRWLockGuard::Exclusive);
 		if (managed.contains(hwnd)) {
 			managed.erase(hwnd);
 		}
@@ -1033,7 +1042,7 @@ LRESULT Window::destroy_handler_internal(WPARAM wParam, LPARAM lParam) {
 	// 检查
 	if (get_global_option(Option_QuitWhenWindowAllClosed)) {
 		bool should_quit = true;
-		lock_guard gg(managed_lock);
+		SRWLockGuard gg(&managed_lock, SRWLockGuard::Shared);
 		for (auto& i : managed) {
 			if (i.second->owner() == GetCurrentThreadId() && i.second->is_alive()) {
 				should_quit = false;
@@ -1049,7 +1058,7 @@ LRESULT Window::destroy_handler_internal(WPARAM wParam, LPARAM lParam) {
 
 
 void Window::addEventListener(msg_t msg, function<void(EventData&)> handler) {
-	if (GetCurrentThreadId() != _owner) {
+	if (GetCurrentThreadId() != owner()) {
 		throw window_dangerous_thread_operation_exception("Not allowed to change event handlers outside the owner thread!");
 	}
 
@@ -1068,7 +1077,7 @@ void Window::addEventListener(msg_t msg, function<void(EventData&)> handler) {
 }
 
 void Window::removeEventListener(msg_t msg) {
-	if (GetCurrentThreadId() != _owner) {
+	if (GetCurrentThreadId() != owner()) {
 		throw window_dangerous_thread_operation_exception("Not allowed to change event handlers outside the owner thread!");
 	}
 	if (!__message_router.contains(msg)) return;
@@ -1077,7 +1086,7 @@ void Window::removeEventListener(msg_t msg) {
 }
 
 void Window::removeEventListener(msg_t msg, function<void(EventData&)> handler) {
-	if (GetCurrentThreadId() != _owner) {
+	if (GetCurrentThreadId() != owner()) {
 		throw window_dangerous_thread_operation_exception("Not allowed to change event handlers outside the owner thread!");
 	}
 	if (!__message_router.contains(msg)) return;

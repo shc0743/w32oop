@@ -32,13 +32,13 @@ private:
 		text1.create(L"Centered Text", 300, 1, 0, 0, text1.STYLE | SS_CENTER | SS_CENTERIMAGE);
 		layout.define(text1)
 			.constraintStart_toStartOf(nullptr).constraintTop_toTopOf(nullptr).constraintEnd_toEndOf(nullptr) // You can use nullptr to specify @parent
-			.width(layout.WRAP_CONTENT).height(30);
+			.width(layout.MATCH_CONSTRAINT).height(30);
 
 		button2.set_parent(hwnd);
 		button2.create(L"Button 2", 300, 1);
 		layout.define(button2)
 			.constraintStart_toStartOf(nullptr).constraintTop_toBottomOf(text1).constraintEnd_toEndOf(nullptr) // you can also specify it manually
-			.width(layout.WRAP_CONTENT).height(30).marginTop(10);
+			.width(layout.MATCH_CONSTRAINT).height(30).marginTop(10);
 
 		button3.set_parent(hwnd);
 		button3.create(L"Button 3", 300, 1);
