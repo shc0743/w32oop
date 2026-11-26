@@ -1,5 +1,6 @@
 ﻿#include "Window.hpp"
 #include "LayoutManager.hpp"
+#include "../Utility/RAII.hpp"
 #include "../Utility/StringUtil/converts.hpp"
 #include "../System/Hooks.hpp"
 using namespace std;
@@ -24,8 +25,8 @@ std::vector<HWND> w32oop::ui::GetAllChildWindows(HWND hParent) {
 unordered_map<HWND, Window*> Window::managed;
 std::recursive_mutex Window::managed_lock;
 std::array<long long, Window::Option_Count> Window::global_options{};
-HFONT Window::default_font;
-std::recursive_mutex Window::default_font_mutex;
+Font Window::default_font;
+SRWLOCK Window::default_font_lock = SRWLOCK_INIT;
 map<Window::HotKeyOptions, function<void(Window::HotKeyProcData&)>> Window::hotkey_handlers;
 std::recursive_mutex Window::hotkey_handlers_mutex;
 std::atomic<size_t> Window::hotkey_global_count;
@@ -128,16 +129,13 @@ const wstring Window::get_class_name() const
 	return className;
 }
 
-void Window::set_default_font(HFONT font) {
-	default_font_mutex.lock();
-	if (default_font) DeleteObject(default_font);
+void Window::set_default_font(Font font) {
+	SRWLockGuard gg(&default_font_lock, SRWLockGuard::Exclusive);
 	default_font = font;
-	default_font_mutex.unlock();
 }
 
 void Window::set_default_font(wstring font_name) {
-	default_font_mutex.lock();
-	if (default_font) DeleteObject(default_font);
+	SRWLockGuard gg(&default_font_lock, SRWLockGuard::Exclusive);
 	// GDI的负高度字体不会按DC的DPI自动缩放（-14 在任何DPI下都是14px），
 	// 必须手动按缩放系数换算：96 DPI 下 -14 → 14px，200% 下 -28 → 28px。
 	// 注：GDI 在非96整数倍的DPI（如120/144）下会被系统强制禁用ClearType，
@@ -147,12 +145,7 @@ void Window::set_default_font(wstring font_name) {
 	if (!get_global_option(GlobalOptions::Option_DisableFrameworkDpiVirtualization)) {
 		factor = w32oop::ui::internal::system_dpi_scale_factor();
 	}
-	default_font = CreateFontW(
-		(int)(-14.0f * factor - 0.5f), (int)(-7.0f * factor - 0.5f),
-		0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET,
-		OUT_CHARACTER_PRECIS, CLIP_CHARACTER_PRECIS, CLEARTYPE_QUALITY, FF_DONTCARE,
-		font_name.c_str());
-	default_font_mutex.unlock();
+	default_font = Font(font_name);
 }
 
 void Window::set_accelerator(HACCEL accelerator) {
@@ -329,11 +322,22 @@ void Window::create() {
 			lock_guard gg(managed_lock);
 			managed[hwnd] = this;
 		}
+		if (!window_font.is_valid()) {
+			bool isValid = false;
+			{
+				SRWLockGuard gg(&default_font_lock, SRWLockGuard::Shared);
+				isValid = default_font.is_valid();
+			}
+			if (!isValid) set_default_font();
+			SRWLockGuard gg(&default_font_lock, SRWLockGuard::Shared);
+			window_font = default_font;
+		}
 		setup_event_handlers();
+		update_font();
 		m_onCreated();
 		onCreated();
 		_created = true;
-		if (layoutManager) layoutManager->doLayout();
+		if (layoutManager) try { layoutManager->doLayout(); } catch (...) {}
 	}
 	catch (std::exception& exc) {
 		DestroyWindow(hwnd);
@@ -507,12 +511,19 @@ void Window::text(const std::string& text) {
 }
 
 HFONT Window::font() const {
+	validate_hwnd();
 	return reinterpret_cast<HFONT>(SendMessage(hwnd, WM_GETFONT, 0, 0));
 }
 
 void Window::font(HFONT font) {
 	validate_hwnd();
 	SendMessage(hwnd, WM_SETFONT, (WPARAM)font, TRUE);
+}
+
+void Window::update_font() {
+	validate_hwnd();
+	get_font_object().scale_factor(get_dpi_scale_factor());
+	SendMessage(hwnd, WM_SETFONT, (WPARAM)get_render_font(), TRUE);
 }
 
 void Window::add_style(LONG_PTR style) {
@@ -692,6 +703,7 @@ void Window::_MyInternalWndProc(UINT msg, WPARAM wParam, LPARAM lParam) {
 		{
 			if (!is_framework_dpi_virtualization_allowed()) break;
 			update_dpi_scale_factor((float)internal::get_window_dpi(hwnd) / 96.0f, false);
+			update_font();
 		}
 		break;
 
@@ -978,7 +990,6 @@ void Window::onCreated() {}
 void Window::onDestroy() {}
 
 void Window::m_onCreated() {
-	SendMessageW(hwnd, WM_SETFONT, (WPARAM)get_font(), 0);
 	addEventListener(WM_SIZE, [this](EventData& ev) {
 		if (ev.hwnd != hwnd) return;
 		if (layoutManager) layoutManager->doLayout();

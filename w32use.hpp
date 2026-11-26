@@ -32,6 +32,7 @@ using namespace w32oop::concurrency;
 
 #ifndef W32USE_NO_GUI
 // Use GUI
+#include "./GUI/Font.hpp"
 #include "./GUI/Window.hpp"
 #include "./GUI/LayoutManager.hpp"
 #include "./GUI/Menu.hpp"
@@ -82,6 +83,7 @@ using w32oop::system::RegistryValue;
 // Use Utility
 #include "./Utility/RAII.hpp"
 #include "./Utility/Memory.hpp"
+#include "./Utility/Property.hpp"
 #include "./Utility/StringUtil/converts.hpp"
 #include "./Utility/StringUtil/encodings.hpp"
 #include "./Utility/StringUtil/operations.hpp"

@@ -458,6 +458,8 @@ void ConstraintLayout::layout_children() {
 		}
 	}
 
+	if (measuring_) return;
+
 	for (const LayoutRef& node : order) {
 		if (node.is_window() && !node.created()) continue;
 
@@ -798,6 +800,8 @@ void LinearLayout::layout_children() {
 			}
 		}
 	}
+
+	if (measuring_) return;
 
 	for (const LayoutRef& node : order) {
 		if (node.is_window() && !node.created()) continue;

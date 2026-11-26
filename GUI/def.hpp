@@ -42,6 +42,7 @@ namespace w32oop::def {
 
 namespace w32oop::exceptions {
     w32oop_declare_exception_class(ui);
+
     w32oop_declare_exception_class_from(window, ui_exception);
     w32oop_declare_exception_class_from(window_not_initialized, window_exception);
     w32oop_declare_exception_class_from(window_already_initialized, window_exception);
@@ -53,8 +54,13 @@ namespace w32oop::exceptions {
     w32oop_declare_exception_class_from(window_parent_not_managed, window_exception);
     w32oop_declare_exception_class_from(window_dangerous_thread_operation, window_exception);
     w32oop_declare_exception_class_from(window_hotkey_duplication, window_exception);
+
     w32oop_declare_exception_class_from(gdi, ui_exception);
     w32oop_declare_exception_class_from(invalid_brush, gdi_exception);
+    w32oop_declare_exception_class_from(invalid_font_handle, gdi_exception);
+    w32oop_declare_exception_class_from(invalid_font, gdi_exception);
+    w32oop_declare_exception_class_from(font_creation_failure, gdi_exception);
+    w32oop_declare_exception_class_from(font_already_created, gdi_exception);
 }
 
 #include <CommCtrl.h>

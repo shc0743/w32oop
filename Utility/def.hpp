@@ -12,3 +12,8 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #include "../Core/w32def.hpp"
 
 
+namespace w32oop::exceptions {
+    w32oop_declare_exception_class(utility);
+}
+
+

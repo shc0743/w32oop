@@ -17,18 +17,18 @@ namespace w32oop::core {
 	/// <typeparam name="HandleType">The type of the handle, "HANDLE" for example.</typeparam>
 	/// <typeparam name="invalid_exception_class">What will be thown if the handle is not valid? Note: this will be thrown when use, not when assign</typeparam>
 	/// <typeparam name="AllowNegativeOneAsValidHandle">If the specific type accepts (-1). For example, in file handle -1 is considered as invalid, but in process handle, -1 is a pseudo handle referring to the current process itself.</typeparam>
-	/// <typeparam name="HandleCloser">The function pointer to close the handle, "CloseHandle" for example.</typeparam>
+	/// <typeparam name="HandleCloser">The function pointer to close the handle, "CloseHandle" for example. This function MUST NOT throw C++ exceptions</typeparam>
 	template <typename HandleType, bool AllowNegativeOneAsValidHandle, auto HandleCloser, typename invalid_exception_class>
 	class w32BaseHandle : public w32RAIIObject {
 		HandleType value;
 	public:
-		inline bool is_valid() const {
+		inline bool is_valid() const noexcept {
 			if (!value) return false;
 			if (value != reinterpret_cast<HandleType>(-1)) return true;
 			if (AllowNegativeOneAsValidHandle) return true;
 			return false;
 		}
-		inline bool is_closable() const {
+		inline bool is_closable() const noexcept {
 			return (value != 0) && (value != reinterpret_cast<HandleType>(-1));
 		}
 		inline void validate() const {
@@ -36,17 +36,17 @@ namespace w32oop::core {
 		}
 
 		// Constructors (Normal)
-		w32BaseHandle() : value(0) {}
+		w32BaseHandle() noexcept : value(0) {}
 		// Constructors (Resource Acquisition Is Initialization)
-		w32BaseHandle(HandleType value) {
+		w32BaseHandle(HandleType value) noexcept {
 			this->value = value;
 			// keep the behavior same: do not validate
 		}
-		virtual ~w32BaseHandle() {
+		virtual ~w32BaseHandle() noexcept {
 			if (is_closable()) HandleCloser(value);
 		}
 		// Construct from a handle
-		w32BaseHandle& operator=(HandleType value2) {
+		w32BaseHandle& operator=(HandleType value2) noexcept {
 			if (is_closable()) HandleCloser(this->value); // in operator=, we should close the old handle first
 			this->value = value2;
 			// do not validate

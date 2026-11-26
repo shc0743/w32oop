@@ -24,6 +24,7 @@ set(W32OOP_SOURCES
     Concurrency/EventObject.cpp
     Concurrency/Process.cpp
     Concurrency/Thread.cpp
+    GUI/Font.cpp
     GUI/FoundationLib.cpp
     GUI/LayoutManager.cpp
     GUI/Menu.cpp
@@ -125,7 +126,7 @@ if (W32OOP_INSTALL)
     )
 
     install(FILES w32use.hpp DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/w32oop")
-    foreach (module Core Concurrency GUI IO Network Reactive System Utility)
+    foreach (module Core Concurrency GUI IO Network System Utility)
         install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/${module}"
             DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/w32oop"
             FILES_MATCHING PATTERN "*.hpp")

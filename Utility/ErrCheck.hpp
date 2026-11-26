@@ -64,10 +64,10 @@ namespace w32oop::util {
 			LocalFree((HLOCAL)LocalAddress);
 			SetLastError(code);
 		}
-		std::wstring raw_message() const noexcept {
+		std::wstring raw_message() const {
 			return msg;
 		}
-		std::wstring message() const noexcept {
+		std::wstring message() const {
 			return std::format(L"Error {}: {}", code, msg);
 		}
 	};

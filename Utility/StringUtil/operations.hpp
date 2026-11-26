@@ -60,7 +60,8 @@ namespace w32oop::util::str::operations {
 		const std::string& strDes
 	) {
 		std::string result = strBase;
-		return replace(result, strSrc, strDes);
+		replace(result, strSrc, strDes);
+		return result;
 	}
 
 	/// @brief 返回替换后的新字符串，原串不变。
@@ -70,7 +71,8 @@ namespace w32oop::util::str::operations {
 		const std::wstring& strDes
 	) {
 		std::wstring result = strBase;
-		return replace(result, strSrc, strDes);
+		replace(result, strSrc, strDes);
+		return result;
 	}
 
 	/// @brief 分割字符串，结果写入 dest。

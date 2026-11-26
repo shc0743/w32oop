@@ -9,6 +9,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 #error "Must be included in C++"
 #endif
 #include "./def.hpp"
+#include "./Font.hpp"
 #include "../Utility/RAII.hpp"
 #pragma region internal macros
 #define package namespace
@@ -147,8 +148,8 @@ protected:
 private:
 	static std::unordered_map<HWND, Window*> managed; // Internal -- DO NOT access it
 	static std::recursive_mutex managed_lock;
-	static std::recursive_mutex default_font_mutex;
-	static HFONT default_font;
+	static SRWLOCK default_font_lock;
+	static Font default_font;
 	static std::array<long long, Option_Count> global_options;
 	static std::map<HotKeyOptions, std::function<void(HotKeyProcData&)>> hotkey_handlers;
 	static std::recursive_mutex hotkey_handlers_mutex;
@@ -186,14 +187,22 @@ protected:
 		WNDCLASSEXW wc{};
 		return (bool)GetClassInfoExW(GetModuleHandleW(NULL), class_name.c_str(), &wc);
 	}
-	virtual HFONT get_font() {
-		if (default_font) return default_font;
-		set_default_font();
-		return default_font;
+
+protected:
+	Font window_font;
+	// 获取用于渲染的实际字体句柄，获取后不应该手动释放此句柄
+	// 要获取字体包装对象，请使用 get_font_object
+	virtual HFONT get_render_font() {
+		validate_hwnd();
+		return window_font.get();
 	}
 
 public:
-	static void set_default_font(HFONT font);
+	// 设置此后创建的窗口的默认字体。
+	// 对于调用此函数前创建的窗口，该函数不影响它们。
+	static void set_default_font(Font font);
+	// 设置此后创建的窗口的默认字体名称。
+	// 对于调用此函数前创建的窗口，该函数不影响它们。
 	static void set_default_font(std::wstring font_name = L"Consolas");
 	static void set_accelerator(HACCEL accelerator);
 
@@ -432,8 +441,16 @@ public:
 	virtual void text(const std::wstring& text);
 	virtual void text(const std::string& text);
 
+	/// @deprecated This function has been deprecated. Please use get_font_object and set_font_object to get better experience
 	virtual HFONT font() const;
+	/// @deprecated This function has been deprecated. Please use get_font_object and set_font_object to get better experience
 	virtual void font(HFONT font);
+
+	inline const Font& get_font_object() const { return window_font; }
+	inline Font& get_font_object() { return window_font; }
+	inline void set_font_object(const Font& font) { window_font = font; update_font(); }
+	inline void set_font_object(Font&& font) { window_font = font; update_font(); }
+	virtual void update_font();
 
 	virtual void add_style(LONG_PTR style) final;
 	virtual void remove_style(LONG_PTR style) final;
