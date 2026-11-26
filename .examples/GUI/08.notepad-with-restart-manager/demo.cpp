@@ -1,7 +1,8 @@
 ﻿// w32oop Framework Example
 //
 // :08.notepad-with-restart-manager/demo.cpp
-// 
+// This example demonstrates how to use the framework to create a real life, functional application.
+
 #define UNICODE 1
 #define _UNICODE 1
 #include <w32use.hpp>
@@ -45,6 +46,7 @@ namespace MyDemo {
         Button btnSave, btnSaveAs;
         Edit lblFilePath;
         Edit txtEditor;
+        ConstraintLayout layout;
         std::wstring currentFilePath; // 当前文件路径
         HFONT editorFont = NULL;
         HANDLE hSessionLock = NULL;
@@ -69,22 +71,36 @@ namespace MyDemo {
         void onCreated() override {
             // 创建 [打开文件] 按钮
             btnOpen.set_parent(*this);
-            btnOpen.create(L"打开文件", 80, 30, 10, 10);
+            btnOpen.create(L"打开文件", 80, 30, 0, 0);
+            layout.define(btnOpen)
+                .constraintStart_toStartOf(nullptr).constraintTop_toTopOf(nullptr)
+                .width(80).height(30).marginStart(10).marginTop(10);
             btnOpen.onClick([this](EventData &) { openFile(); });
 
             // 创建 [保存文件] 按钮
             btnSave.set_parent(*this);
-            btnSave.create(L"保存文件", 80, 30, 100, 10);
+            btnSave.create(L"保存文件", 80, 30, 0, 0);
+            layout.define(btnSave)
+                .constraintStart_toEndOf(btnOpen).constraintTop_toTopOf(nullptr)
+                .width(80).height(30).marginStart(10).marginTop(10);
             btnSave.onClick([this](EventData &) { saveFile(); });
 
             // 创建 [另存为] 按钮
             btnSaveAs.set_parent(*this);
-            btnSaveAs.create(L"另存为", 80, 30, 100, 10);
+            btnSaveAs.create(L"另存为", 80, 30, 0, 0);
+            layout.define(btnSaveAs)
+                .constraintStart_toEndOf(btnSave).constraintTop_toTopOf(nullptr)
+                .width(80).height(30).marginStart(10).marginTop(10);
             btnSaveAs.onClick([this](EventData &) { saveFile(true); });
 
             // 创建文件路径显示框（只读）
             lblFilePath.set_parent(*this);
-            lblFilePath.create(L"当前文件：无", 300, 30, 200, 10);
+            lblFilePath.create(L"当前文件：无", 300, 30, 0, 0);
+            layout.define(lblFilePath)
+                .constraintStart_toEndOf(btnSaveAs).constraintEnd_toEndOf(nullptr)
+                .constraintTop_toTopOf(nullptr)
+                .width(ConstraintLayout::MATCH_CONSTRAINT).height(30)
+                .marginStart(10).marginEnd(10).marginTop(10);
             lblFilePath.readonly(true);
 
             // 创建字体
@@ -94,8 +110,13 @@ namespace MyDemo {
 
             // 创建多行编辑框
             txtEditor.set_parent(*this);
-            txtEditor.create(L"", 620, 400, 10, 50, 
+            txtEditor.create(L"", 620, 400, 0, 0,
                 WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_MULTILINE | ES_WANTRETURN | WS_HSCROLL | WS_VSCROLL);
+            layout.define(txtEditor)
+                .constraintStart_toStartOf(nullptr).constraintEnd_toEndOf(nullptr)
+                .constraintTop_toTopOf(nullptr).constraintBottom_toBottomOf(nullptr)
+                .width(ConstraintLayout::MATCH_CONSTRAINT).height(ConstraintLayout::MATCH_CONSTRAINT)
+                .marginStart(10).marginEnd(10).marginTop(50).marginBottom(10);
             txtEditor.onChange([&](EventData &) { 
                 if (!unsaved) {
                     btnSave.text(L"请保存!");
@@ -305,40 +326,6 @@ namespace MyDemo {
         }
 
     private:
-        void onSizeChange(EventData&) {
-            RECT rc = client_rect();
-            int btnHeight = 30, btnWidth = 80, btnMargin = 10;
-            int lblHeight = 30;
-            int editorMarginTop = 50;
-            int editorMarginSide = 10;
-            // 按钮
-            btnOpen.resize(btnWidth, btnHeight);
-            btnOpen.move_to(btnMargin, btnMargin);
-
-            btnSave.resize(btnWidth, btnHeight);
-            btnSave.move_to(btnMargin + btnWidth + btnMargin, btnMargin);
-
-            btnSaveAs.resize(btnWidth, btnHeight);
-            btnSaveAs.move_to(btnMargin + 2 * (btnWidth + btnMargin), btnMargin);
-
-            // 标签
-            int lblLeft = btnMargin + 3 * (btnWidth + btnMargin);
-            int lblWidthDynamic = rc.right - lblLeft - btnMargin;
-            if (lblWidthDynamic < 0) lblWidthDynamic = 0;
-            lblFilePath.resize(lblWidthDynamic, lblHeight);
-            lblFilePath.move_to(lblLeft, btnMargin);
-
-            // 编辑框
-            int editorTop = editorMarginTop;
-            int editorLeft = editorMarginSide;
-            int editorWidth = rc.right - 2 * editorMarginSide;
-            int editorHeight = rc.bottom - editorMarginTop - editorMarginSide;
-            if (editorWidth < 0) editorWidth = 0;
-            if (editorHeight < 0) editorHeight = 0;
-            txtEditor.resize(editorWidth, editorHeight);
-            txtEditor.move_to(editorLeft, editorTop);
-        }
-
         void onWillClose(EventData &e) {
             if (!unsaved) {
                 CloseHandle(hSessionLock);
@@ -409,7 +396,7 @@ namespace MyDemo {
         }
 
         virtual void setup_event_handlers() override {
-            WINDOW_add_handler(WM_WINDOWPOSCHANGED, onSizeChange);
+            setLayoutManager(&layout);
             WINDOW_add_handler(WM_CLOSE, onWillClose);
             WINDOW_add_handler(WM_QUERYENDSESSION, onWillShutdown);
             WINDOW_add_handler(WM_ENDSESSION, onWillShutdown);

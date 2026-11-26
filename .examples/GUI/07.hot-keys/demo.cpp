@@ -1,6 +1,6 @@
 ﻿// w32oop Framework Example
 // 
-// : 06.hot-keys/demo.cpp
+// : 07.hot-keys/demo.cpp
 // This example demonstrates how to use hot keys in w32oop framework.
 
 #include <w32use.hpp>

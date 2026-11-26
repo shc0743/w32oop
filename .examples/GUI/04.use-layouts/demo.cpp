@@ -1,8 +1,6 @@
-﻿// This demo is outdated! It won't work and do not use this anymore
-
-// w32oop Framework Example
+﻿// w32oop Framework Example
 //
-// : 10.use-layouts/demo.cpp
+// : 04.use-layouts/demo.cpp
 // This example demonstrates how to use layout managers.
 
 #include <w32use.hpp>
@@ -33,6 +31,9 @@ private:
 		layout.define(text1)
 			.constraintStart_toStartOf(nullptr).constraintTop_toTopOf(nullptr).constraintEnd_toEndOf(nullptr) // You can use nullptr to specify @parent
 			.width(layout.MATCH_CONSTRAINT).height(30);
+		// Much easier than the example 03! that's why we recommend you to use this
+		// Our layout manager is similar to Google's ConstraintLayout, so if you are not sure about its usage,
+		// feel free to check Google's documentations and ask for artificial intelligence models
 
 		button2.set_parent(hwnd);
 		button2.create(L"Button 2", 300, 1);

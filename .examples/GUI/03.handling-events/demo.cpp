@@ -4,6 +4,7 @@
 // This example demonstrates how to handle events in a GUI application using the w32oop framework.
 
 #include <w32use.hpp>
+#include <algorithm>
 #include <commctrl.h>
 
 #pragma comment(linker, "\"/manifestdependency:type='win32' \
@@ -20,7 +21,7 @@ protected:
     Static text;
     bool unsaved = false;
     void onCreated() {
-        edit.set_parent(this);
+        edit.set_parent(this); // this is ugly, isn't it? we are also exploring a better API interface to express the parent-child relationship
         edit.create(L"Write something here...", 300, 200, 10, 10, Edit::STYLE | ES_MULTILINE | ES_WANTRETURN);
         save.set_parent(this);
         save.create(L"Save", 100, 30, 10, 240);
@@ -36,6 +37,8 @@ protected:
             unsaved = false;
             text.text(L"Changes saved successfully");
         });
+
+        // Microsoft will send a WM_WINDOWPOSCHANGED so dont worry and there is no need to dispatch it manually
     }
     void onClose(EventData& event) {
         if (unsaved) {
@@ -50,8 +53,40 @@ protected:
             }
         }
     }
+    void doLayout(EventData&) {
+        if (!edit.created() || !save.created() || !text.created()) return;
+
+        RECT rc = client_rect();
+        const int width = rc.right - rc.left;
+        const int height = rc.bottom - rc.top;
+        constexpr int spacing = 10;
+        constexpr int buttonWidth = 100;
+        constexpr int buttonHeight = 30;
+        const int footerY = (std::max)(spacing, height - spacing - buttonHeight);
+
+        // This is the manual-layout example: it is not difficult to notice that it is more complex than using a layout manager
+        edit.resize(
+            spacing,
+            spacing,
+            (std::max)(0, width - 2 * spacing),
+            (std::max)(0, footerY - 2 * spacing)
+        ); // we always recommend you to fully resize the controls in the layout handler (if you are manually implementing this). This
+        // is because use only `move_to` does NOT re-calculate the physical pixels (`move_to` uses SWP_NOSIZE). If the user changed the 
+        // DPI then the application will be ugly unless you use `resize` to fully resize (so that we automatically calculate physical size).
+        save.resize(spacing, footerY, buttonWidth, buttonHeight);
+        const int textX = spacing + buttonWidth + spacing;
+        text.resize(
+            textX,
+            footerY,
+            (std::max)(0, width - textX - spacing),
+            buttonHeight
+        );
+    }
     virtual void setup_event_handlers() override {
         WINDOW_add_handler(WM_CLOSE, onClose);
+        // you can also use WM_SIZE. the difference is small in this example, but
+        // if you need to know more about the event, WM_WINDOWPOSCHANGED provides more information.
+        WINDOW_add_handler(WM_WINDOWPOSCHANGED, doLayout); 
     }
 };
 

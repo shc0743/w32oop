@@ -1,6 +1,6 @@
 ﻿// w32oop Framework Example
 // 
-// : 04.customizing-window-class/demo.cpp
+// : 05.customizing-window-class/demo.cpp
 // This example demonstrates how to customize the window class.
 
 #include <w32use.hpp>

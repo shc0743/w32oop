@@ -1,6 +1,6 @@
 ﻿// w32oop Framework Example
 //
-// : 05.event-bubbles/demo.cpp
+// : 06.event-bubbles/demo.cpp
 // This example demonstrates how to use event bubbling in the GUI framework.
 
 #include <w32use.hpp>

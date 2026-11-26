@@ -21,11 +21,17 @@ private:
 	Button btn;
 	Edit file;
 	Edit textBox;
+	ConstraintLayout layout;
 	HMODULE winhttp;
 	void onCreated() override {
 		winhttp = LoadLibraryW(L"winhttp.dll");
-		btn = Button(*this, L"Click me to download", 360, 30, 10, 10);
+		btn = Button(*this, L"Click me to download", 360, 30, 0, 0);
 		btn.create();
+		layout.define(btn)
+			.constraintStart_toStartOf(nullptr).constraintEnd_toEndOf(nullptr)
+			.constraintTop_toTopOf(nullptr)
+			.width(ConstraintLayout::MATCH_CONSTRAINT).height(30)
+			.marginStart(10).marginEnd(10).marginTop(10);
 		btn.onClick([this] (EventData&) {
 			InputDialog idd; idd.create(); idd.center(hwnd);
 			idd.setButtonsText(L"Download", L"Cancel");
@@ -54,37 +60,28 @@ private:
 			}
 		});
 
-		file = Edit(*this, L"", 360, 25, 10, 50);
+		file = Edit(*this, L"", 360, 25, 0, 0);
 		file.create();
+		layout.define(file)
+			.constraintStart_toStartOf(nullptr).constraintEnd_toEndOf(nullptr)
+			.constraintTop_toTopOf(nullptr)
+			.width(ConstraintLayout::MATCH_CONSTRAINT).height(25)
+			.marginStart(10).marginEnd(10).marginTop(50);
 
-		textBox = Edit(*this, L"", 360, 165, 10, 85, Edit::STYLE | ES_AUTOHSCROLL | ES_AUTOVSCROLL | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE | ES_WANTRETURN);
+		textBox = Edit(*this, L"", 360, 165, 0, 0, Edit::STYLE | ES_AUTOHSCROLL | ES_AUTOVSCROLL | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE | ES_WANTRETURN);
 		textBox.create();
-	}
-	void doLayout(EventData&) {
-		RECT rc = client_rect();
-		auto w = rc.right - rc.left, h = rc.bottom - rc.top;
-		// 调整控件大小
-		btn.resize(10, 10, w - 20, 30);
-		file.resize(10, 50, w - 20, 25);
-		textBox.resize(10, 85, w - 20, h - 100);
+		layout.define(textBox)
+			.constraintStart_toStartOf(nullptr).constraintEnd_toEndOf(nullptr)
+			.constraintTop_toTopOf(nullptr).constraintBottom_toBottomOf(nullptr)
+			.width(ConstraintLayout::MATCH_CONSTRAINT).height(ConstraintLayout::MATCH_CONSTRAINT)
+			.marginStart(10).marginEnd(10).marginTop(85).marginBottom(15);
 	}
 protected:
     virtual void setup_event_handlers() override {
+		setLayoutManager(&layout);
         WINDOW_add_handler(WM_USER + WM_CLOSE, [this](EventData&) {
             removeEventListener(WM_CLOSE);
         });
-		WINDOW_add_handler(WM_WINDOWPOSCHANGED, doLayout);
-		WINDOW_add_handler(WM_USER + 100, [](EventData& ev) {
-			// unused code to prevent AntiMalware products from flagging the app due to too small
-			std::size_t guard = 0;
-			std::stringstream g_ss;
-			g_ss.str("");
-			g_ss << 3.141592653589793 << rand();
-			long double val;
-			g_ss >> val;
-			guard += static_cast<std::size_t>(val);
-			ev.returnValue((LRESULT)guard);
-		});
 	}
 };
 

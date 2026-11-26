@@ -18,32 +18,46 @@ private:
 	StaticEx text;
 	Button btn;
 	Edit textBox, textBoxColorSetter;
+	ConstraintLayout layout; // You will learn this soon! This is much more convinent than manual resizing (but you can still do it manually)
 	void onCreated() override {
 		// lifecycle hooks
-		text = StaticEx(*this, L"...", 470, 60, 10, 90);
-		text.color(RgbColor("#abcdef"));
-		text.backgroundColor(RgbColor(0x123456));
+		text = StaticEx(hwnd, L"...", 470, 60, 0, 0); // `hwnd` is the internal HWND that is available in the whole class, you can use `hwnd` directly at any time within the class
+		text.color(RgbColor("#abcdef")); // there is a convenient utility for you to convert any hex colors to COLORREF! It is even constexpr so no runtime cost is here
+		text.backgroundColor(RgbColor(0x123456)); // hex like this is also supported
 		text.create();
+		layout.define(text)
+			.constraintStart_toStartOf(nullptr).constraintTop_toTopOf(nullptr)
+			.width(470).height(60).marginStart(10).marginTop(90);
 
-		btn = Button(*this, L"Click me!", 100, 30, 10, 10);
+		btn = Button(hwnd, L"Click me!", 100, 30, 0, 0);
 		btn.create();
+		layout.define(btn)
+			.constraintStart_toStartOf(nullptr).constraintTop_toTopOf(nullptr)
+			.width(100).height(30).marginStart(10).marginTop(10);
 		btn.onClick([this] (EventData& event) {
 		    UNREFERENCED_PARAMETER(event);
 			text.text(L"Hello, World!");
 		});
 
-		textBox = Edit(*this, L"Hello, World!", 200, 30, 10, 50);
+		textBox = Edit(*this, L"Hello, World!", 200, 30, 0, 0); // you can also use the implicit operator, but it is much more ugly than directly use `hwnd`
 		textBox.create();
+		layout.define(textBox)
+			.constraintStart_toStartOf(nullptr).constraintTop_toTopOf(nullptr)
+			.width(200).height(30).marginStart(10).marginTop(50);
 		textBox.onChange([this] (EventData& event) {
 		    UNREFERENCED_PARAMETER(event);
 			text.text(L"Text area edited");
 		});
 
-		textBoxColorSetter = Edit(*this, L"#abcdef", 120, 30, 10, 160);
+		textBoxColorSetter = Edit(*this, L"#abcdef", 120, 30, 0, 0);
 		textBoxColorSetter.create();
+		layout.define(textBoxColorSetter)
+			.constraintStart_toStartOf(nullptr).constraintTop_toTopOf(nullptr)
+			.width(120).height(30).marginStart(10).marginTop(160);
 		textBoxColorSetter.onChange([this] (EventData& event) {
 		    UNREFERENCED_PARAMETER(event);
 			try {
+				// If you want to parse the COLORREF at runtime, just use ParseRgbColorRt!
 				text.color(ParseRgbColorRt(w32oop::util::str::encodings::utf16_utf8(textBoxColorSetter.text())));
 				text.text(L"Color updated!!");
 			}
@@ -58,7 +72,7 @@ private:
 	}
 protected:
     virtual void setup_event_handlers() override {
-        
+		setLayoutManager(&layout);
     }
 };
 
