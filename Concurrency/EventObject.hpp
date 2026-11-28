@@ -14,54 +14,68 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 
 namespace w32oop::exceptions {
-    w32oop_declare_exception_class_from(event_object_operation_failed, concurrency_exception);
+	w32oop_declare_exception_class_from(event_object_operation_failed, concurrency_exception);
+	w32oop_declare_exception_class_from(event_object_too_many_wait_objects, concurrency_exception);
 }
 
 
 namespace w32oop::concurrency {
 	class EventObject : public Joinable {
-    protected:
-        w32EventHandle hEvent;
-    public:
-        EventObject(bool auto_reset = false) : hEvent(CreateEventW(nullptr, !auto_reset, false, nullptr)) {}
-        EventObject(bool auto_reset, bool initial_state, PCWSTR name, LPSECURITY_ATTRIBUTES lpsa) :
-            hEvent(CreateEventW(lpsa, !auto_reset, initial_state, name)) {}
+	protected:
+		w32EventHandle hEvent;
+	public:
+		EventObject(bool auto_reset = false) : hEvent(CreateEventW(nullptr, !auto_reset, false, nullptr)) {}
+		EventObject(bool auto_reset, bool initial_state, PCWSTR name, LPSECURITY_ATTRIBUTES lpsa) :
+			hEvent(CreateEventW(lpsa, !auto_reset, initial_state, name)) {}
 
-        // Getters
-        HANDLE get() const {
-            return hEvent;
-        }
+		// Getters
+		HANDLE get() const {
+			return hEvent;
+		}
 
-        // move constructor
-        EventObject(EventObject&& other) noexcept : hEvent(std::move(other.hEvent)) {}
+		// move constructor
+		EventObject(EventObject&& other) noexcept : hEvent(std::move(other.hEvent)) {}
 
-        // move assignment operator
-        EventObject& operator=(EventObject&& other) noexcept {
-            if (this != &other) {
-                hEvent = std::move(other.hEvent);
-            }
-            return *this;
-        }
+		// move assignment operator
+		EventObject& operator=(EventObject&& other) noexcept {
+			if (this != &other) {
+				hEvent = std::move(other.hEvent);
+			}
+			return *this;
+		}
 
-    public:
-        // Operations
-        void set();
-        void reset();
+	public:
+		// Operations
+		void set();
+		void reset();
 
-        virtual void join();
+		virtual void join();
 
-        bool wait(DWORD timeout = INFINITE);
+		bool wait(DWORD timeout = INFINITE) const;
 
-        template <typename Container>
-        bool wait_multiple(const Container &events, DWORD timeout = INFINITE, bool wait_all = true) {
-            Container handles(events);
-            handles.push_back(hEvent);
-            DWORD result = WaitForMultipleObjects(handles.size(), handles.data(), wait_all, timeout);
-            if (result == WAIT_FAILED) {
-                throw w32oop::exceptions::event_object_operation_failed_exception("Failed to wait for event object.");
-            }
-            return (result == WAIT_OBJECT_0);
-        }
-    };
+		inline bool signaled() const {
+			return wait(0) == WAIT_OBJECT_0;
+		}
+
+		/// <summary>
+		/// Wait for multiple objects, include myself.
+		/// </summary>
+		/// <typeparam name="Container">A container, such as std::vector. It must has `push_back` and `size` and `data` methods.</typeparam>
+		/// <param name="events">The extra objects to wait.</param>
+		/// <param name="timeout">The timeout to wait.</param>
+		/// <param name="wait_all">Whether wait all or not.</param>
+		/// <returns>The wait result. If wait was failed, an exception will be thrown instead of result.</returns>
+		template <typename Container>
+		DWORD wait_multiple(const Container &events, DWORD timeout = INFINITE, bool wait_all = true) const {
+			Container handles(events);
+			handles.push_back(hEvent);
+			if (handles.size() > MAXIMUM_WAIT_OBJECTS) throw w32oop::exceptions::event_object_too_many_wait_objects_exception();
+			DWORD result = WaitForMultipleObjects(handles.size(), handles.data(), wait_all, timeout);
+			if (result == WAIT_FAILED) {
+				throw w32oop::exceptions::event_object_operation_failed_exception("Failed to wait for event object.");
+			}
+			return (result);
+		}
+	};
 }
 

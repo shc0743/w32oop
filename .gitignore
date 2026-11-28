@@ -60,5 +60,6 @@ ipch
 .cache
 /.test
 *.exe
+/.examples/FoundationLib/.vs/
 
 

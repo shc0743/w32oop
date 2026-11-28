@@ -152,9 +152,9 @@ class StaticEx : public ChildControlWindow {
 public:
 	static const LONG STYLE = WS_CHILD | WS_VISIBLE;
 	StaticEx(HWND parent, const std::wstring& text, int width, int height, int x = 0, int y = 0, LONG style = STYLE)
-		: ChildControlWindow(parent, text, width, height, x, y, style) {
+		: ChildControlWindow(parent, text, width, height, x, y, style, WS_EX_CONTROLPARENT) {
 	}
-	StaticEx() : ChildControlWindow(0, L"", 0, 0, 1, 1, STYLE) {}
+	StaticEx() : ChildControlWindow(0, L"", 0, 0, 1, 1, STYLE, WS_EX_CONTROLPARENT) {}
 	StaticEx(StaticEx&& other) noexcept : w32oop_ui_window_move_ctor_super(ChildControlWindow, other),
 		w32oop_ui_window_move_ctor_object(_MyStatic, other),
 		w32oop_ui_window_move_ctor_object(bgBrush, other)

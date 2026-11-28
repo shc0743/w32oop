@@ -35,6 +35,26 @@ namespace w32oop::util {
 			format();
 			return *this;
 		};
+		ErrorChecker(ErrorChecker&& other) noexcept
+			: code(other.code),
+			msg(std::move(other.msg)),
+			hExtraModule(other.hExtraModule) {
+			other.code = 0;
+			other.hExtraModule = NULL;
+			other.msg.clear();
+		}
+		ErrorChecker& operator=(ErrorChecker&& other) noexcept {
+			if (this != &other) {
+				code = other.code;
+				msg = std::move(other.msg);
+				hExtraModule = other.hExtraModule;
+
+				other.code = 0;
+				other.hExtraModule = NULL;
+				other.msg.clear();
+			}
+			return *this;
+		}
 
 		DWORD get() const noexcept { return code; }
 		void check() const {

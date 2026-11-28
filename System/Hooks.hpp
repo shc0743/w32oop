@@ -45,6 +45,25 @@ namespace w32oop::system {
 		Hook() {}
 		virtual ~Hook();
 
+		Hook(const Hook&) = delete;
+		Hook& operator=(const Hook&) = delete;
+
+		Hook(Hook&& other) noexcept
+			: hHook(std::move(other.hHook))
+			, my_procedure(std::move(other.my_procedure))
+		{
+			other.my_procedure = HookProcInfo{};
+		}
+
+		Hook& operator=(Hook&& other) noexcept {
+			if (this != &other) {
+				hHook = std::move(other.hHook);
+				my_procedure = std::move(other.my_procedure);
+				other.my_procedure = HookProcInfo{};
+			}
+			return *this;
+		}
+
 		virtual void set(int idHook, DWORD dwThreadId, HINSTANCE hMod = NULL) final;
 		virtual void unset() final;
 
