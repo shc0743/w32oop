@@ -338,7 +338,7 @@ void Window::create() {
 		m_onCreated();
 		onCreated();
 		_created = true;
-		if (layoutManager) try { layoutManager->doLayout(); } catch (...) {}
+		if (_MyLayoutManager) try { _MyLayoutManager->doLayout(); } catch (...) {}
 	}
 	catch (std::exception& exc) {
 		DestroyWindow(hwnd);
@@ -492,12 +492,17 @@ HMENU Window::sysmenu() const {
 
 wstring Window::text() const {
 	validate_hwnd();
-	LRESULT len = SendMessageW(hwnd, WM_GETTEXTLENGTH, 0, 0);
-	wchar_t* buffer = new wchar_t[len + 1];
-	SendMessageW(hwnd, WM_GETTEXT, len + 1, (LPARAM)buffer);
-	wstring text(buffer);
-	delete[] buffer;
-	return text;
+	int len = GetWindowTextLengthW(hwnd);
+	if (len <= 0 || len > 1073741824) return {};
+	wstring buffer(static_cast<size_t>(len) + 1, L'\0');
+	int copied = GetWindowTextW(
+		hwnd,
+		buffer.data(),
+		static_cast<int>(buffer.size())
+	);
+	if (copied <= 0) return {};
+	buffer.resize(static_cast<size_t>(copied));
+	return buffer;
 }
 
 void Window::text(const std::wstring& text) {
@@ -505,10 +510,6 @@ void Window::text(const std::wstring& text) {
 	DWORD result = 0;
 	DWORD_PTR pResult = DWORD_PTR(&result);
 	SendMessageTimeoutW(hwnd, WM_SETTEXT, 0, (LPARAM)text.c_str(), SMTO_ERRORONEXIT, 5000, &pResult);
-}
-
-void Window::text(const std::string& text) {
-	return this->text(util::str::converts::str_wstr(text));
 }
 
 HFONT Window::font() const {
@@ -528,28 +529,44 @@ void Window::update_font() {
 	SendMessage(hwnd, WM_SETFONT, (WPARAM)get_render_font(), TRUE);
 }
 
+LONG_PTR Window::get_style() const {
+	validate_hwnd();
+	return GetWindowLongPtr(hwnd, GWL_STYLE);
+}
+
+LONG_PTR Window::get_extended_style() const {
+	validate_hwnd();
+	return GetWindowLongPtr(hwnd, GWL_EXSTYLE);
+}
+
 void Window::add_style(LONG_PTR style) {
 	validate_hwnd();
-	LONG_PTR currentStyle = GetWindowLongPtr(hwnd, GWL_STYLE);
-	SetWindowLongPtr(hwnd, GWL_STYLE, currentStyle | style);
+	SetWindowLongPtr(hwnd, GWL_STYLE, get_style() | style);
 }
 
 void Window::remove_style(LONG_PTR style) {
 	validate_hwnd();
-	LONG_PTR currentStyle = GetWindowLongPtr(hwnd, GWL_STYLE);
-	SetWindowLongPtr(hwnd, GWL_STYLE, currentStyle & ~style);
+	SetWindowLongPtr(hwnd, GWL_STYLE, get_style() & ~style);
 }
 
 void Window::add_style_ex(LONG_PTR styleEx) {
 	validate_hwnd();
-	LONG_PTR currentStyleEx = GetWindowLongPtr(hwnd, GWL_EXSTYLE);
-	SetWindowLongPtr(hwnd, GWL_EXSTYLE, currentStyleEx | styleEx);
+	SetWindowLongPtr(hwnd, GWL_EXSTYLE, get_extended_style() | styleEx);
 }
 
 void Window::remove_style_ex(LONG_PTR styleEx) {
 	validate_hwnd();
-	LONG_PTR currentStyleEx = GetWindowLongPtr(hwnd, GWL_EXSTYLE);
-	SetWindowLongPtr(hwnd, GWL_EXSTYLE, currentStyleEx & ~styleEx);
+	SetWindowLongPtr(hwnd, GWL_EXSTYLE, get_extended_style() & ~styleEx);
+}
+
+void Window::override_style(LONG_PTR style) {
+	validate_hwnd();
+	SetWindowLongPtr(hwnd, GWL_STYLE, style);
+}
+
+void Window::override_style_ex(LONG_PTR styleEx) {
+	validate_hwnd();
+	SetWindowLongPtr(hwnd, GWL_EXSTYLE, styleEx);
 }
 
 void Window::destroy() {
@@ -564,21 +581,11 @@ void Window::destroy() {
 	}
 }
 
-void Window::override_style(LONG_PTR style) {
-	validate_hwnd();
-	SetWindowLongPtr(hwnd, GWL_STYLE, style);
-}
-
-void Window::override_style_ex(LONG_PTR styleEx) {
-	validate_hwnd();
-	SetWindowLongPtr(hwnd, GWL_EXSTYLE, styleEx);
-}
-
 void Window::setLayoutManager(LayoutManager* lpLayoutManager) {
 	validate_thread(); // 特意不检查hwnd，因为布局管理器被设计为可安全地在窗口创建前调用
-	if (layoutManager && layoutManager != lpLayoutManager) layoutManager->detach();
-	layoutManager = lpLayoutManager;
-	if (layoutManager) layoutManager->attach(this);
+	if (_MyLayoutManager && _MyLayoutManager != lpLayoutManager) _MyLayoutManager->detach();
+	_MyLayoutManager = lpLayoutManager;
+	if (_MyLayoutManager) _MyLayoutManager->attach(this);
 }
 
 LRESULT Window::send(UINT msg, WPARAM wParam, LPARAM lParam) const {
@@ -671,6 +678,8 @@ LRESULT Window::_MyWndProc(UINT msg, WPARAM wParam, LPARAM lParam) {
 			}
 			// TODO: 这里可能在极端条件下锁解锁但窗口被销毁，但如果直接整体锁定又可能导致死锁
 			// 目前暂时没有良好解决方案，只能尽量避免同一个窗口的控件在另一个线程中创建。
+
+			// 对于通知消息，处理程序收到的 wParam 是原始消息的消息值；lParam 包含控件句柄，没有必要，被舍弃。
 			return target->dispatchMessageToWindowAndGetResult(msg_t(notifCode + WINDOW_NOTIFICATION_CODES), (UINT)msg, lParam, true);
 		}
 		catch (std::out_of_range&) {
@@ -1001,7 +1010,7 @@ void Window::onDestroy() {}
 void Window::m_onCreated() {
 	addEventListener(WM_SIZE, [this](EventData& ev) {
 		if (ev.hwnd != hwnd) return;
-		if (layoutManager) layoutManager->doLayout();
+		if (_MyLayoutManager) _MyLayoutManager->doLayout();
 	});
 	// 这个由于需要修改返回值不能塞到InternalWndProc
 	addEventListener(WM_DPICHANGED, [this](EventData& ev) {
@@ -1016,13 +1025,13 @@ void Window::m_onCreated() {
 				suggested->bottom - suggested->top,
 				SWP_NOZORDER | SWP_NOACTIVATE);
 		}
-		if (layoutManager) layoutManager->doLayout();
+		if (_MyLayoutManager) _MyLayoutManager->doLayout();
 		ev.returnValue(0);
 	});
 }
 
 LRESULT Window::destroy_handler_internal(WPARAM wParam, LPARAM lParam) {
-	layoutManager = nullptr;
+	_MyLayoutManager = nullptr;
 	// cleanups
 	onDestroy();
 	if (is_main_window) {

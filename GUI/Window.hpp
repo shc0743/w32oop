@@ -241,7 +241,7 @@ protected:
 		HMENU hMenu = 0;
 	} *setup_info;
 
-	LayoutManager* layoutManager = nullptr;
+	LayoutManager* _MyLayoutManager = nullptr;
 
 	virtual void transfer_ownership() final {
 		_owner = GetCurrentThreadId();
@@ -254,12 +254,13 @@ private:
 	bool _disable_framework_dpi_virtualization_for_this_window = false;
 	float _dpi_scale_factor = 1.0f;
 	void _XxxInternalFixDpiForWindow();
-protected:
+	virtual void update_dpi_scale_factor(float new_factor, bool _Indirect);
+public:
 	inline void set_framework_dpi_virtualization(bool enable) {
 		_disable_framework_dpi_virtualization_for_this_window = !enable;
 	}
-	float get_dpi_scale_factor() const { return _dpi_scale_factor; };
-	void update_dpi_scale_factor(float new_factor, bool _Indirect);
+	virtual float get_dpi_scale_factor() const { return _dpi_scale_factor; };
+	virtual void update_dpi_scale_factor(float new_factor) { update_dpi_scale_factor(new_factor, false); }
 public:
 	// 如果关闭当前窗口的框架虚拟化功能，那么所有子控件的虚拟化也将被一并关闭。
 	virtual bool is_framework_dpi_virtualization_allowed() const final;
@@ -456,10 +457,6 @@ public:
 
 	virtual HMENU sysmenu() const;
 
-	virtual std::wstring text() const;
-	virtual void text(const std::wstring& text);
-	virtual void text(const std::string& text);
-
 	/// @deprecated This function has been deprecated. Please use get_font_object and set_font_object to get better experience
 	virtual HFONT font() const;
 	/// @deprecated This function has been deprecated. Please use get_font_object and set_font_object to get better experience
@@ -473,18 +470,25 @@ public:
 	// 只能在窗口线程中调用此函数
 	virtual void update_font();
 
-	virtual void add_style(LONG_PTR style) final;
-	virtual void remove_style(LONG_PTR style) final;
-	virtual void add_style_ex(LONG_PTR styleEx) final;
-	virtual void remove_style_ex(LONG_PTR styleEx) final;
+	virtual LONG_PTR get_style() const;
+	virtual LONG_PTR get_extended_style() const;
+	virtual void add_style(LONG_PTR style);
+	virtual void remove_style(LONG_PTR style);
+	virtual void add_style_ex(LONG_PTR styleEx);
+	virtual void remove_style_ex(LONG_PTR styleEx);
 
 protected:
 	// Windows 要求窗口销毁只能在创建窗口的线程中进行；不应以任何方式试图绕过此限制（如，直接使用 DestroyWindow(hwnd) ——那样同样会失败）
 	virtual void destroy();
 
-	virtual void override_style(LONG_PTR style) final;
-	virtual void override_style_ex(LONG_PTR styleEx) final;
+	virtual void override_style(LONG_PTR style);
+	virtual void override_style_ex(LONG_PTR styleEx);
 
+public:
+	virtual std::wstring text() const;
+	virtual void text(const std::wstring& text);
+
+protected:
 	virtual void setLayoutManager(LayoutManager* lpLayoutManager);
 
 public:

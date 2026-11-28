@@ -21,7 +21,7 @@ HWND w32oop::ui::foundation::ChildControlWindow::new_window() {
 		setup_info->style,
 		scaled(setup_info->x), scaled(setup_info->y),
 		scaled(setup_info->width), scaled(setup_info->height),
-		parent_window, // 必须提供，否则会失败（逆天Windows控件库。。。）并且不可以变化，否则丢消息。。。
+		parent_window,
 		(HMENU)(LONG_PTR)(ctlid), GetModuleHandle(NULL), this
 	);
 	if (!w) return NULL;
@@ -67,6 +67,22 @@ wstring w32oop::ui::foundation::StatusBar::get_text(int part) const {
 	auto buffer = std::make_unique<WCHAR[]>(static_cast<size_t>(len) + 1);
 	send(SB_GETTEXTW, part, (LPARAM)buffer.get());
 	return buffer.get();
+}
+
+HWND w32oop::ui::foundation::InputDialog::new_window() {
+	HWND w = CreateWindowExW(
+		setup_info->styleEx,
+		get_class_name().c_str(),
+		setup_info->title.c_str(),
+		setup_info->style,
+		scaled(setup_info->x), scaled(setup_info->y),
+		scaled(setup_info->width), scaled(setup_info->height),
+		parent_window,
+		0, GetModuleHandle(NULL), this
+	);
+	if (!w) return NULL;
+	SetWindowLongPtrW(w, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+	return w;
 }
 
 void w32oop::ui::foundation::InputDialog::onCreated() {
@@ -222,6 +238,15 @@ void w32oop::ui::foundation::InputDialog::onDpiChanged(EventData& ev) {
 		FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
 		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
 		DEFAULT_PITCH | FF_DONTCARE, L"Consolas");
+
+	if (this->editBox && this->accept && this->reject) {
+		this->editBox.update_dpi_scale_factor(new_scale);
+		this->editBox.update_font();
+		this->accept.update_dpi_scale_factor(new_scale);
+		this->accept.update_font();
+		this->reject.update_dpi_scale_factor(new_scale);
+		this->reject.update_font();
+	}
 
 	const RECT* suggested = reinterpret_cast<const RECT*>(ev.lParam);
 	if (suggested) {

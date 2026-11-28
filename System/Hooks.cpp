@@ -92,22 +92,6 @@ struct ProcData {
 static ProcData ProcDataMap[MAX_SLOTS]{};
 static SRWLOCK ProcDataMapx = SRWLOCK_INIT;
 
-template<size_t N>
-inline LRESULT CALLBACK HookThunk(int code, WPARAM wParam, LPARAM lParam) {
-	AcquireSRWLockShared(&ProcDataMapx);
-	long long u = ProcDataMap[N].userdata;
-	bool f = ProcDataMap[N].slotCannotUse;
-	MyHookProcType p = ProcDataMap[N].lpfn;
-	ReleaseSRWLockShared(&ProcDataMapx);
-	if (!f || !p) return CallNextHookEx(nullptr, code, wParam, lParam);
-	return p(code, wParam, lParam, u);
-}
-
-template<size_t... Is>
-inline constexpr std::array<HOOKPROC, sizeof...(Is)>
-MakeProcTable(std::index_sequence<Is...>) {
-	return { { &HookThunk<Is>... } };
-}
 
 class w32oop::system::Hook::ProcAddrMap_t {
 public:
@@ -142,6 +126,23 @@ public:
 		return ProcTable[size_t(id) - 1];
 	}
 private:
+	template<size_t N>
+	static LRESULT CALLBACK HookThunk(int code, WPARAM wParam, LPARAM lParam) {
+		AcquireSRWLockShared(&ProcDataMapx);
+		long long u = ProcDataMap[N].userdata;
+		bool f = ProcDataMap[N].slotCannotUse;
+		MyHookProcType p = ProcDataMap[N].lpfn;
+		ReleaseSRWLockShared(&ProcDataMapx);
+		if (!f || !p) return CallNextHookEx(nullptr, code, wParam, lParam);
+		return p(code, wParam, lParam, u);
+	}
+
+	template<size_t... Is>
+	static constexpr std::array<HOOKPROC, sizeof...(Is)>
+	MakeProcTable(std::index_sequence<Is...>) {
+		return { { &HookThunk<Is>... } };
+	}
+
 	static constexpr auto ProcTable = MakeProcTable(std::make_index_sequence<MAX_SLOTS>{});
 };
 w32oop::system::Hook::ProcAddrMap_t w32oop::system::Hook::ProcAddrMap;

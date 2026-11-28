@@ -30,7 +30,7 @@ namespace foundation {
 	// DO NOT super this class when setup_event_handlers!
 	class ChildControlWindow : public Window {
 	public:
-		ChildControlWindow(HWND parent, const std::wstring& title, int width, int height, int x = 0, int y = 0, LONG style = WS_OVERLAPPED, LONG styleEx = 0, unsigned long long ctlid_p = 0)
+		ChildControlWindow(HWND parent, const std::wstring& title, int width, int height, int x = 0, int y = 0, LONG style = WS_CHILD, LONG styleEx = 0, unsigned long long ctlid_p = 0)
 			: ctlid(ctlid_p), Window(title, width, height, x, y, style, styleEx, HMENU(ctlid_p)), parent_window(parent) {
 		}
 		ChildControlWindow(ChildControlWindow&& other) noexcept :
@@ -68,7 +68,7 @@ namespace foundation {
 
 class BaseSystemWindow : public foundation::ChildControlWindow {
 public:
-	BaseSystemWindow(HWND parent, const std::wstring& title, int width, int height, int x = 0, int y = 0, LONG style = WS_OVERLAPPED, LONG styleEx = 0, unsigned long long ctlid_p = 0)
+	BaseSystemWindow(HWND parent, const std::wstring& title, int width, int height, int x = 0, int y = 0, LONG style = WS_CHILD, LONG styleEx = 0, unsigned long long ctlid_p = 0)
 		: ChildControlWindow(parent, title, width, height, x, y, style, styleEx, (ctlid_p != 0 ? ctlid_p : ++ctlid_generator)) {
 	}
 	BaseSystemWindow(BaseSystemWindow&& other) noexcept :
@@ -121,6 +121,8 @@ public:
 #pragma region w32oop Foundation Classes
 namespace foundation {
 
+
+#pragma region Standard controls (they are registered by user32 so we can directly use them)
 
 // Basic Static class. Directly uses system Static class, no extra windows.
 class Static : public BaseSystemWindow {
@@ -370,6 +372,153 @@ private:
 	}
 };
 
+class ListBox : public BaseSystemWindow {
+public:
+	static const LONG STYLE = WS_CHILD | WS_VISIBLE | WS_TABSTOP | LBS_NOTIFY | WS_VSCROLL | WS_BORDER;
+	ListBox(HWND parent, const std::wstring& text, int width, int height, int x = 0, int y = 0, LONG style = STYLE)
+		: BaseSystemWindow(parent, text, width, height, x, y, style) {
+	}
+	ListBox() : BaseSystemWindow(0, L"", 0, 0, 1, 1, STYLE) {}
+	ListBox(ListBox&& other) noexcept : w32oop_ui_window_move_ctor_super(BaseSystemWindow, other),
+		w32oop_ui_window_move_ctor_object(onDblclickHandler, other),
+		w32oop_ui_window_move_ctor_object(onChangeHandler, other) {
+		w32oop_ui_window_move_value(lastSelection, other);
+	}
+	ListBox& operator=(ListBox&& other) noexcept {
+		w32oop_ui_window_move_assignment_start(other);
+		w32oop_ui_window_move_super(BaseSystemWindow, other);
+		w32oop_ui_window_move_object(onDblclickHandler, other);
+		w32oop_ui_window_move_object(onChangeHandler, other);
+		w32oop_ui_window_move_value(lastSelection, other);
+		w32oop_ui_window_move_assignment_end();
+	}
+	~ListBox() override {}
+protected:
+	virtual void setup_event_handlers() override {
+		WINDOW_EVENT_HANDLER_SUPER(BaseSystemWindow);
+		WINDOW_add_notification_handler(LBN_DBLCLK, onDoubleClicked);
+		WINDOW_add_notification_handler(LBN_SELCHANGE, onChange);
+		WINDOW_add_notification_handler(LBN_SELCANCEL, onChange);
+	}
+protected:
+	const std::wstring get_class_name() const override {
+		return WC_LISTBOXW;
+	}
+	int lastSelection = -1;
+protected:
+	CEventHandler onDblclickHandler;
+	CEventHandler onChangeHandler;
+	void onDoubleClicked(EventData& data) {
+		if (onDblclickHandler) {
+			data.preventDefault();
+			onDblclickHandler(data);
+		}
+	}
+	void onChange(EventData& data) {
+		// ignore compare when multiple: users should check by themselves in multiple mode
+		if ((multiple() ? true : (lastSelection != getCurrentSelection())) && onChangeHandler) {
+			data.preventDefault();
+			lastSelection = getCurrentSelection();
+			onChangeHandler(data);
+		}
+	}
+public:
+	void onDblclick(CEventHandler handler) {
+		onDblclickHandler = handler;
+	}
+	void onChange(CEventHandler handler) {
+		onChangeHandler = handler;
+	}
+public:
+	bool multiple() const {
+		return get_style() & LBS_MULTIPLESEL;
+	}
+	void multiple(bool f) {
+		if (f) {
+			add_style(LBS_MULTIPLESEL | LBS_EXTENDEDSEL);
+		}
+		else {
+			remove_style(LBS_MULTIPLESEL);
+			remove_style(LBS_EXTENDEDSEL);
+		}
+	}
+	int getCount() const {
+		return ListBox_GetCount(hwnd);
+	}
+	void resetContent() {
+		ListBox_ResetContent(hwnd);
+	}
+	int getCurrentSelection() const {
+		int value = ListBox_GetCurSel(hwnd);
+		return value;
+	}
+	void setCurrentSelection(int index) {
+		lastSelection = index;
+		ListBox_SetCurSel(hwnd, index);
+	}
+	void clearSelection() {
+		lastSelection = -1;
+		ListBox_SetCurSel(hwnd, -1);
+	}
+	int addItem(const std::wstring& itemText) {
+		return ListBox_AddString(hwnd, itemText.c_str());
+	}
+	int deleteItem(int index) {
+		return ListBox_DeleteString(hwnd, index);
+	}
+	int insertItem(int index, const std::wstring& itemText) {
+		return ListBox_InsertString(hwnd, index, itemText.c_str());
+	}
+	LRESULT getItemData(int index) const {
+		return ListBox_GetItemData(hwnd, index);
+	}
+	void setItemData(int index, LPARAM data) {
+		ListBox_SetItemData(hwnd, index, data);
+	}
+	std::wstring getItemText(int index) const {
+		validate_hwnd();
+		int len = ListBox_GetTextLen(hwnd, index);
+		if (len <= 0 || len > 1073741824) return {};
+		std::wstring buffer(static_cast<size_t>(len) + 1, L'\0');
+		int copied = ((int)(DWORD)::SendMessageW((hwnd), 0x0189, (WPARAM)(int)(index), (LPARAM)(LPCTSTR)(buffer.data())));
+		if (copied <= 0) return {};
+		buffer.resize(static_cast<size_t>(copied));
+		return buffer;
+	}
+	void setItemText(const std::wstring& newText, int index) {
+		auto OldData = getItemData(index);
+		auto currentSelection = getCurrentSelection();
+		ListBox_DeleteString(hwnd, index);
+		ListBox_InsertString(hwnd, index, newText.c_str());
+		setItemData(index, OldData);
+		setCurrentSelection(currentSelection);
+	}
+	int getSelectionCount() const {
+		return ListBox_GetSelCount(hwnd);
+	}
+	int getTopIndex() const {
+		return ListBox_GetTopIndex(hwnd);
+	}
+	std::vector<int> getSelectedItems() const {
+		auto cnt = getSelectionCount();
+		if (cnt <= 0) return {};
+		std::vector<int> value;
+		value.reserve((size_t)cnt);
+		ListBox_GetSelItems(hwnd, cnt, value.data());
+		return value;
+	}
+	// only use this for multiple box
+	void setSelectionState(bool selectionState,int index) {
+		ListBox_SetSel(hwnd, selectionState, index);
+	}
+};
+
+#pragma endregion
+
+
+
+#pragma region Common controls. You should InitCommonControlsEx before using them.
+
 class StatusBar : public BaseSystemWindow {
 public:
 	static const LONG STYLE = WS_CHILD | WS_VISIBLE;
@@ -411,7 +560,6 @@ protected:
 		WINDOW_EVENT_HANDLER_SUPER(BaseSystemWindow);
 	}
 };
-
 
 class TrackBar : public BaseSystemWindow {
 public:
@@ -474,6 +622,9 @@ public:
 	}
 };
 
+#pragma endregion
+
+
 
 
 
@@ -486,11 +637,11 @@ concept InputDialog_ValueTypes = std::same_as<T, std::wstring> ||
 // One-time use. To reuse please create new instance
 class InputDialog : public Window {
 public:
-	InputDialog(std::wstring title = L"Input", int width = 320, int height = 145) :
-		Window(title, (int)(width * w32oop::ui::internal::system_dpi_scale_factor() + 0.5f),
-			(int)(height * w32oop::ui::internal::system_dpi_scale_factor() + 0.5f), 0, 0, WS_POPUP | WS_SYSMENU | WS_SIZEBOX | WS_CLIPCHILDREN),
+	InputDialog(std::wstring title = L"Input", int width = 320, int height = 145, HWND ownerWindow = NULL) :
+		Window(title, (int)(width* w32oop::ui::internal::system_dpi_scale_factor() + 0.5f),
+			(int)(height* w32oop::ui::internal::system_dpi_scale_factor() + 0.5f), 0, 0, WS_POPUP | WS_SYSMENU | WS_SIZEBOX | WS_CLIPCHILDREN),
 		m_scale((float)w32oop::ui::internal::system_dpi_scale_factor()),
-		_logical_width(width), _logical_height(height)
+		_logical_width(width), _logical_height(height), parent_window(ownerWindow)
 	{
 		set_framework_dpi_virtualization(false);
 	};
@@ -504,6 +655,7 @@ public:
 		w32oop_ui_window_move_value(m_scale, other);
 		w32oop_ui_window_move_value(_logical_width, other);
 		w32oop_ui_window_move_value(_logical_height, other);
+		w32oop_ui_window_move_value(parent_window, other);
 		w32oop_ui_window_move_value(promptFont, other);
 		w32oop_ui_window_move_value(rejected, other);
 		w32oop_ui_window_move_value(isActive, other);
@@ -521,6 +673,7 @@ public:
 		w32oop_ui_window_move_value(m_scale, other);
 		w32oop_ui_window_move_value(_logical_width, other);
 		w32oop_ui_window_move_value(_logical_height, other);
+		w32oop_ui_window_move_value(parent_window, other);
 		w32oop_ui_window_move_value(promptFont, other);
 		w32oop_ui_window_move_value(rejected, other);
 		w32oop_ui_window_move_value(isActive, other);
@@ -539,6 +692,8 @@ protected:
 
 	float m_scale = 1.0f;
 	int _logical_width = 320, _logical_height = 145;
+	HWND parent_window;
+	HWND new_window() override;
 	std::wstring prompt;
 	Edit editBox;
 	Button accept, reject;
@@ -584,15 +739,24 @@ protected:
 	}
 public:
 	template <InputDialog_ValueTypes value_type>
-	std::optional<value_type> getInput(std::wstring prompt = L"", std::optional<value_type> default_value = std::nullopt) {
+	std::optional<value_type> getInput(std::wstring prompt = L"", std::optional<value_type> default_value = std::nullopt, bool modal = true) {
 		// 设置UI元素显示提示和默认值
 		if (!isCreated) create();
 		if (!prompt.empty()) setPrompt(prompt);
 		if (default_value.has_value()) setText(str(default_value.value()));
 
 		show();
+		focus();
 		editBox.focus();
+		HWND ancestor = GetParent(hwnd);
+		if (ancestor == hwnd || ancestor == GetDesktopWindow()) ancestor = NULL;
+		BOOL previousState = ancestor && IsWindowEnabled(ancestor);
+		if (modal && ancestor) EnableWindow(ancestor, FALSE);
 		run(this);
+		if (modal && ancestor) {
+			EnableWindow(ancestor, previousState);
+			SetForegroundWindow(ancestor);
+		}
 
 		if (rejected) return std::nullopt;
 		if constexpr (std::same_as<value_type, std::wstring>) return getText();

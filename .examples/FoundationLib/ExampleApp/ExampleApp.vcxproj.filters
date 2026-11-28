@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="源文件">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="头文件">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="资源文件">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="w32oop">
+      <UniqueIdentifier>{1002812c-42f3-426d-8e37-4cc466da386d}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ExampleApp.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Concurrency\EventObject.cpp">
+      <Filter>w32oop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Concurrency\Process.cpp">
+      <Filter>w32oop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Concurrency\Thread.cpp">
+      <Filter>w32oop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\GUI\Font.cpp">
+      <Filter>w32oop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\GUI\FoundationLib.cpp">
+      <Filter>w32oop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\GUI\LayoutManager.cpp">
+      <Filter>w32oop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\GUI\Menu.cpp">
+      <Filter>w32oop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\GUI\TrayIcon.cpp">
+      <Filter>w32oop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\GUI\Window.cpp">
+      <Filter>w32oop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\IO\File.cpp">
+      <Filter>w32oop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\IO\PipeClient.cpp">
+      <Filter>w32oop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\IO\PipeServer.cpp">
+      <Filter>w32oop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Network\HttpRequest.cpp">
+      <Filter>w32oop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Network\HttpResponse.cpp">
+      <Filter>w32oop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\System\Hooks.cpp">
+      <Filter>w32oop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\System\Registry.cpp">
+      <Filter>w32oop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\System\Service.cpp">
+      <Filter>w32oop</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Manifest Include="app.manifest">
+      <Filter>资源文件</Filter>
+    </Manifest>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\Concurrency\def.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Concurrency\EventObject.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Concurrency\Joinable.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Concurrency\Process.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Concurrency\Thread.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Core\publicdef.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Core\version.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Core\w32def.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Core\w32handle.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\GUI\def.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\GUI\Font.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\GUI\FoundationLib.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\GUI\InternalMessageBox.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\GUI\LayoutManager.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\GUI\Menu.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\GUI\ParseColor.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\GUI\TrayIcon.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\GUI\Window.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\IO\def.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\IO\File.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\IO\PipeClient.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\IO\PipeServer.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Network\def.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Network\HttpRequest.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Network\HttpResponse.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\System\def.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\System\Hooks.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\System\Registry.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\System\Service.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Utility\def.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Utility\ErrCheck.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Utility\Memory.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Utility\Property.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Utility\RAII.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Utility\StringUtil\converts.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Utility\StringUtil\def.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Utility\StringUtil\encodings.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Utility\StringUtil\operations.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\w32use.hpp">
+      <Filter>w32oop</Filter>
+    </ClInclude>
+    <ClInclude Include="examples_registry.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ButtonExample.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="EditExample.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
