@@ -231,6 +231,12 @@
     <ClInclude Include="ButtonExample.hpp" />
     <ClInclude Include="EditExample.hpp" />
     <ClInclude Include="examples_registry.hpp" />
+    <ClInclude Include="StaticExample.hpp" />
+    <ClInclude Include="StaticExExample.hpp" />
+    <ClInclude Include="CheckBoxExample.hpp" />
+    <ClInclude Include="ListBoxExample.hpp" />
+    <ClInclude Include="TrackBarExample.hpp" />
+    <ClInclude Include="StatusBarExample.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

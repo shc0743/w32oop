@@ -463,7 +463,10 @@ public:
 	}
 	void clearSelection() {
 		lastSelection = -1;
-		ListBox_SetCurSel(hwnd, -1);
+		// LB_SETCURSEL only moves the focus in a multiple-selection list box,
+		// so the selection has to be cleared with LB_SETSEL(-1) there.
+		if (multiple()) ListBox_SetSel(hwnd, FALSE, -1);
+		else ListBox_SetCurSel(hwnd, -1);
 	}
 	int addItem(const std::wstring& itemText) {
 		return ListBox_AddString(hwnd, itemText.c_str());
@@ -507,9 +510,12 @@ public:
 	std::vector<int> getSelectedItems() const {
 		auto cnt = getSelectionCount();
 		if (cnt <= 0) return {};
-		std::vector<int> value;
-		value.reserve((size_t)cnt);
-		ListBox_GetSelItems(hwnd, cnt, value.data());
+		// The vector must be sized, not only reserved: ListBox_GetSelItems
+		// writes into the buffer and the size is what the caller iterates.
+		std::vector<int> value(static_cast<size_t>(cnt));
+		int copied = ListBox_GetSelItems(hwnd, cnt, value.data());
+		if (copied <= 0) return {};
+		value.resize(static_cast<size_t>(copied));
 		return value;
 	}
 	// only use this for multiple box
@@ -554,7 +560,15 @@ public:
 		send(SB_SETTEXT, LOBYTE(index), (LPARAM)t.c_str());
 	}
 	void set_parts(int count, int* widths) {
-		send(SB_SETPARTS, count, (LPARAM)widths);
+		// SB_SETPARTS takes the right edge of each part, so the values must be
+		// scaled by the framework DPI virtualization like any other size.
+		// Negative values (e.g. -1 = extend to the right edge) are kept as-is.
+		if (count <= 0) return;
+		std::vector<int> edges(static_cast<size_t>(count));
+		for (int i = 0; i < count; ++i) {
+			edges[i] = (widths[i] < 0) ? widths[i] : scaled(widths[i]);
+		}
+		send(SB_SETPARTS, count, (LPARAM)edges.data());
 	}
 protected:
 	const std::wstring get_class_name() const override {
@@ -650,7 +664,7 @@ public:
 	{
 		set_framework_dpi_virtualization(false);
 	};
-	InputDialog(HWND ownerWindow = NULL, std::wstring title = L"Input", int width = 320, int height = 145) :
+	InputDialog(HWND ownerWindow, std::wstring title = L"Input", int width = 320, int height = 145) :
 		Window(title, (int)(width* w32oop::ui::internal::system_dpi_scale_factor() + 0.5f),
 			(int)(height* w32oop::ui::internal::system_dpi_scale_factor() + 0.5f), 0, 0, WS_POPUP | WS_SYSMENU | WS_SIZEBOX | WS_CLIPCHILDREN),
 		m_scale((float)w32oop::ui::internal::system_dpi_scale_factor()),

@@ -46,7 +46,7 @@ private:
 						req.file_buffer_file_name(file.text());
 						HttpResponse resp = fetch(req);
 						if (resp.isMemoryBody())
-							textBox.text(resp.text());
+							textBox.text(w32oop::util::str::operations::toReplaced(resp.text(), L"\n", L"\r\n"));
 						else textBox.text(L"OK: File is large. Saved to " + file.text());
 					}
 					catch (exception& e) {

@@ -9,6 +9,8 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 using namespace std;
 
+#pragma optimize("", off)
+
 class MainWindowClass : public Window {
 public:
 	MainWindowClass() : Window(L"w32oop Foundation Libraries Example", 640, 480, 0, 0, WS_OVERLAPPEDWINDOW) {}
@@ -25,40 +27,18 @@ private:
 		ChooseExample.set_parent(this);
 		ChooseExample.create(L"", 1, 1);
 		ChooseExample.onChange([this](EventData&) {
+			lpExample = nullptr;
 			auto sel = ChooseExample.getCurrentSelection();
 			if (sel < 0 || sel >= Examples.size()) {
-				lpExample = nullptr;
-				return;
-			}
-			if (sel == static_cast<int>(Examples.size()) - 1) {
-				lpExample = nullptr;
-				if (IDOK != MessageBoxW(hwnd, L"Are you sure? This will create a lot of windows!!!", 
-					L"Warning", MB_ICONQUESTION | MB_OKCANCEL)) return;
-				vector<shared_ptr<Window>> ws;
-				size_t s = 0;
-				for (size_t i = 0; i < 1000; ++i) try {
-					auto w = std::make_shared<EditExample>(hwnd);
-					w->create();
-					w->show();
-					ws.push_back(w);
-					s = ws.size();
-				}
-				catch (std::exception& exc) {
-					s = ws.size();
-					ws.clear();
-					MessageBoxW(hwnd, format(L"Created {} windows then failed at #{}!\r\nError: {}", s, i + 1,
-						w32oop::util::str::converts::str_wstr(exc.what())).c_str(),
-						L"Benchmark", MB_ICONINFORMATION);
-					break;
-				}
-				MessageBoxW(hwnd, format(L"Created {} windows", s).c_str(), L"Success", MB_ICONINFORMATION);
 				return;
 			}
 			lpExample = Examples.at(sel).second(hwnd);
-			lpExample->create();
-			lpExample->add_style(WS_BORDER);
-			lpExample->add_style_ex(WS_EX_CONTROLPARENT);
-			lpExample->show();
+			if (lpExample) {
+				lpExample->create();
+				lpExample->add_style(WS_BORDER);
+				lpExample->add_style_ex(WS_EX_CONTROLPARENT);
+				lpExample->show();
+			}
 			doLayout();
 		});
 		for (auto& i : Examples) ChooseExample.addItem(i.first);

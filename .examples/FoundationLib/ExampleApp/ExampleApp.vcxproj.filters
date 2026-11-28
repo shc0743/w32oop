@@ -205,5 +205,23 @@
     <ClInclude Include="EditExample.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="StaticExample.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="StaticExExample.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="CheckBoxExample.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ListBoxExample.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="TrackBarExample.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="StatusBarExample.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
