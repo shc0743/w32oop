@@ -21,7 +21,7 @@ protected:
 		lblLeft.set_parent(this);
 		lblLeft.create(L"Left aligned", 1, 1, 0, 0, Static::STYLE | SS_LEFT);
 		layout.define(lblLeft).width(260).height(24)
-			.centerHorizontally().constraintTop_toTopOf(LayoutRef{});
+			.centerHorizontally().constraintTop_toTopOf(nullptr);
 
 		lblCenter.set_parent(this);
 		lblCenter.create(L"Center aligned", 1, 1, 0, 0, Static::STYLE | SS_CENTER);

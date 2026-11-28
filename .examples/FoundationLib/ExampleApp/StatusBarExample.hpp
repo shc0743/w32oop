@@ -21,10 +21,12 @@ protected:
 		// dock the status bar to the bottom edge, full width
 		bar.set_parent(this);
 		bar.create(L"", 1, 1);
-		layout.define(bar).matchParent().height(24)
-			.constraintStart_toStartOf(LayoutRef{})
-			.constraintEnd_toEndOf(LayoutRef{})
-			.constraintBottom_toBottomOf(LayoutRef{});
+		// actually the status bar ignores the size, we just need to send a WM_SIZE to it.
+		// see: https://learn.microsoft.com/en-us/windows/win32/controls/status-bars
+		layout.define(bar).matchParent().height(1)
+			.constraintStart_toStartOf(nullptr)
+			.constraintEnd_toEndOf(nullptr)
+			.constraintBottom_toBottomOf(nullptr);
 
 		// SB_SETPARTS takes the right edge of each part (logical pixels here,
 		// set_parts scales them for the DPI virtualization)

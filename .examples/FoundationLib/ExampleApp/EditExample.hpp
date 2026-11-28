@@ -24,7 +24,7 @@ protected:
 		edit.create(L"Hello, w32oop!", 1, 1,
 			0, 0, Edit::STYLE | ES_MULTILINE | ES_WANTRETURN | ES_AUTOVSCROLL | WS_VSCROLL);
 		layout.define(edit).width(400).height(120) 
-			.centerHorizontally().constraintTop_toTopOf(LayoutRef{}).marginTop(20);
+			.centerHorizontally().constraintTop_toTopOf(nullptr).marginTop(20);
 
 		// buttons: set_parent, create(text, width, height), then place with the layout
 		btnUndo.set_parent(this);

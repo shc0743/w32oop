@@ -21,7 +21,7 @@ protected:
 		chk.set_parent(this);
 		chk.create(L"Check me", 1, 1);
 		layout.define(chk).width(180).height(28)
-			.centerHorizontally().constraintTop_toTopOf(LayoutRef{});
+			.centerHorizontally().constraintTop_toTopOf(nullptr);
 
 		lbl.set_parent(this);
 		lbl.create(L"Checked: no", 1, 1);

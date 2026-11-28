@@ -537,22 +537,28 @@ public:
 		: BaseSystemWindow(parent, text, width, height, x, y, style) {
 	}
 	StatusBar() : BaseSystemWindow(0, L"", 0, 0, 1, 1, STYLE) {}
-	StatusBar(StatusBar&& other) noexcept : w32oop_ui_window_move_ctor_super(BaseSystemWindow, other) {}
+	StatusBar(StatusBar&& other) noexcept : w32oop_ui_window_move_ctor_super(BaseSystemWindow, other),
+		w32oop_ui_window_move_ctor_object(logical_parts, other)
+	{
+		w32oop_ui_window_move_value(is_simple, other);
+	}
 	StatusBar& operator=(StatusBar&& other) noexcept {
 		w32oop_ui_window_move_assignment_start(other);
 		w32oop_ui_window_move_super(BaseSystemWindow, other);
+		w32oop_ui_window_move_object(logical_parts, other);
+		w32oop_ui_window_move_value(is_simple, other);
 		w32oop_ui_window_move_assignment_end();
 	}
 	~StatusBar() override {}
 	inline void simple(bool isSimple) {
 		send(SB_SIMPLE, isSimple ? TRUE : FALSE, 0);
+		is_simple = isSimple;
+		if (!is_simple) apply_parts();
 	}
 	std::wstring text() const override {
 		return get_text(0);
 	}
 	std::wstring get_text(int part = 0) const;
-	// Note: To operate a non-simple status bar, 
-	// please use `set_text(int index, const std::wstring& t)` instead.
 	void text(const std::wstring& t) override {
 		return set_text(SB_SIMPLEID, t);
 	}
@@ -560,23 +566,32 @@ public:
 		send(SB_SETTEXT, LOBYTE(index), (LPARAM)t.c_str());
 	}
 	void set_parts(int count, int* widths) {
-		// SB_SETPARTS takes the right edge of each part, so the values must be
-		// scaled by the framework DPI virtualization like any other size.
-		// Negative values (e.g. -1 = extend to the right edge) are kept as-is.
-		if (count <= 0) return;
-		std::vector<int> edges(static_cast<size_t>(count));
-		for (int i = 0; i < count; ++i) {
-			edges[i] = (widths[i] < 0) ? widths[i] : scaled(widths[i]);
-		}
-		send(SB_SETPARTS, count, (LPARAM)edges.data());
+		if (count <= 0 || widths == nullptr) return;
+		logical_parts.assign(widths, widths + count);
+		apply_parts();
 	}
 protected:
 	const std::wstring get_class_name() const override {
 		return STATUSCLASSNAMEW;
 	}
 protected:
+	std::vector<int> logical_parts;
+	bool is_simple = false;
+
+	void apply_parts() {
+		if (logical_parts.empty() || is_simple) return;
+		std::vector<int> edges(logical_parts.size());
+		for (size_t i = 0; i < logical_parts.size(); ++i) {
+			edges[i] = (logical_parts[i] < 0) ? logical_parts[i] : scaled(logical_parts[i]);
+		}
+		send(SB_SETPARTS, static_cast<int>(edges.size()), (LPARAM)edges.data());
+	}
+	void onDpiChanged(EventData&) {
+		apply_parts();
+	}
 	virtual void setup_event_handlers() override {
 		WINDOW_EVENT_HANDLER_SUPER(BaseSystemWindow);
+		WINDOW_add_handler(WM_DPICHANGED_BEFOREPARENT, onDpiChanged);
 	}
 };
 

@@ -23,7 +23,7 @@ protected:
 		track.set_tick_frequency(10);
 		track.pos(50);
 		layout.define(track).width(320).height(45)
-			.centerHorizontally().constraintTop_toTopOf(LayoutRef{});
+			.centerHorizontally().constraintTop_toTopOf(nullptr);
 
 		lbl.set_parent(this);
 		lbl.create(L"Position: 50", 1, 1);

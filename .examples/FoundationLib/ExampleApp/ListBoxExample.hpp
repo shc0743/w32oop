@@ -72,8 +72,8 @@ protected:
 		lblSingleHeader.set_parent(this);
 		lblSingleHeader.create(L"Single-selection list", 1, 1);
 		layout.define(lblSingleHeader).width(220).height(18)
-			.constraintStart_toStartOf(LayoutRef{})
-			.constraintTop_toTopOf(LayoutRef{});
+			.constraintStart_toStartOf(nullptr)
+			.constraintTop_toTopOf(nullptr);
 
 		lblMultiHeader.set_parent(this);
 		lblMultiHeader.create(L"Multiple-selection list", 1, 1);
@@ -118,7 +118,7 @@ protected:
 		btnAdd.set_parent(this);
 		btnAdd.create(L"Add item", 1, 1);
 		layout.define(btnAdd).width(108).height(26)
-			.constraintStart_toStartOf(LayoutRef{})
+			.constraintStart_toStartOf(nullptr)
 			.constraintTop_toBottomOf(lblSingleInfo).marginTop(8);
 
 		btnInsert.set_parent(this);

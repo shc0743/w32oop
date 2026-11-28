@@ -25,7 +25,7 @@ protected:
 		boxRed.create(L"Red text on white background", 1, 1,
 			0, 0, StaticEx::STYLE | SS_CENTER | SS_CENTERIMAGE);
 		layout.define(boxRed).width(320).height(40)
-			.centerHorizontally().constraintTop_toTopOf(LayoutRef{});
+			.centerHorizontally().constraintTop_toTopOf(nullptr);
 
 		boxBlue.color(RgbColor("#0000c0"));
 		boxBlue.backgroundColor(RgbColor("#ffffe0"));
