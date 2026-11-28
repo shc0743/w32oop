@@ -33,7 +33,7 @@ private:
 			.width(ConstraintLayout::MATCH_CONSTRAINT).height(30)
 			.marginStart(10).marginEnd(10).marginTop(10);
 		btn.onClick([this] (EventData&) {
-			InputDialog idd; idd.create(); idd.center(hwnd);
+			InputDialog idd(hwnd); idd.create(); idd.center(hwnd);
 			idd.setButtonsText(L"Download", L"Cancel");
 			auto value = idd.getInput<wstring>(L"Input URL, Please.");
 			if (value.has_value()) {

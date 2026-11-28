@@ -16,7 +16,7 @@ private:
 	ListBox ChooseExample;
 	shared_ptr<Window> lpExample;
 	void onCreated() override {
-		auto tips = make_shared<StaticEx>(hwnd, L"Please select one of the examples\nfrom the list left.", 
+		auto tips = make_shared<StaticEx>(hwnd, L"Please select one of the examples from the list left.", 
 			1, 1, 0, 0, StaticEx::STYLE | SS_CENTER | SS_CENTERIMAGE);
 		tips->create();
 		tips->backgroundColor(RgbColor("#fff"));
@@ -28,6 +28,30 @@ private:
 			auto sel = ChooseExample.getCurrentSelection();
 			if (sel < 0 || sel >= Examples.size()) {
 				lpExample = nullptr;
+				return;
+			}
+			if (sel == static_cast<int>(Examples.size()) - 1) {
+				lpExample = nullptr;
+				if (IDOK != MessageBoxW(hwnd, L"Are you sure? This will create a lot of windows!!!", 
+					L"Warning", MB_ICONQUESTION | MB_OKCANCEL)) return;
+				vector<shared_ptr<Window>> ws;
+				size_t s = 0;
+				for (size_t i = 0; i < 1000; ++i) try {
+					auto w = std::make_shared<EditExample>(hwnd);
+					w->create();
+					w->show();
+					ws.push_back(w);
+					s = ws.size();
+				}
+				catch (std::exception& exc) {
+					s = ws.size();
+					ws.clear();
+					MessageBoxW(hwnd, format(L"Created {} windows then failed at #{}!\r\nError: {}", s, i + 1,
+						w32oop::util::str::converts::str_wstr(exc.what())).c_str(),
+						L"Benchmark", MB_ICONINFORMATION);
+					break;
+				}
+				MessageBoxW(hwnd, format(L"Created {} windows", s).c_str(), L"Success", MB_ICONINFORMATION);
 				return;
 			}
 			lpExample = Examples.at(sel).second(hwnd);

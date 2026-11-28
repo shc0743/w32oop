@@ -74,24 +74,22 @@ public:
 	BaseSystemWindow(BaseSystemWindow&& other) noexcept :
 		w32oop_ui_window_move_ctor_super(ChildControlWindow, other)
 	{
-		w32oop_ui_window_move_value(old_wndproc, other);
 	}
 	BaseSystemWindow& operator=(BaseSystemWindow&& other) noexcept {
 		w32oop_ui_window_move_assignment_start(other);
 		w32oop_ui_window_move_super(ChildControlWindow, other);
-		w32oop_ui_window_move_value(old_wndproc, other);
 		w32oop_ui_window_move_assignment_end();
 	}
 protected:
 	static std::atomic<unsigned long long> ctlid_generator;
 	bool class_registered() const override;
-	WNDPROC old_wndproc = NULL;
 	virtual void setup_event_handlers() override {
 		// 此为顶层控件类，不需要继续super
+		// 保存原始窗口过程，以便把消息（尤其是 WM_DESTROY / WM_NCDESTROY）
+		// 转发给控件本身；old_wndproc 由 Window 持有，销毁期间仍然可用。
 		old_wndproc = (WNDPROC)GetWindowLongPtrW(hwnd, GWLP_WNDPROC);
 		SetWindowLongPtrW(hwnd, GWLP_WNDPROC, (LONG_PTR)Window::StaticWndProc);
 	}
-	virtual LRESULT default_handler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) override;
 
 public:
 	using CEventHandler = std::function<void(EventData&)>;
@@ -239,11 +237,18 @@ public:
 	}
 	std::wstring get_line(int line) {
 		validate_hwnd();
-		wchar_t* buffer = new wchar_t[16384];
-		Edit_GetLine(hwnd, line, buffer, 16384);
-		std::wstring text(buffer);
-		delete[] buffer;
-		return text;
+		if (line < 0) return {};
+		LRESULT lineStart = ::SendMessageW(hwnd, EM_LINEINDEX, (WPARAM)line, 0);
+		if (lineStart < 0) return {};
+		LRESULT lineLength = ::SendMessageW(hwnd, EM_LINELENGTH, (WPARAM)lineStart, 0);
+		if (lineLength <= 0) return {};
+		const size_t capacity = static_cast<size_t>(lineLength);
+		std::wstring buffer(capacity + 1, L'\0');
+		*reinterpret_cast<WORD*>(buffer.data()) = static_cast<WORD>(capacity);
+		LRESULT copied = ::SendMessageW(hwnd, EM_GETLINE, (WPARAM)line, (LPARAM)buffer.data());
+		if (copied <= 0) return {};
+		buffer.resize(static_cast<size_t>(copied));
+		return buffer;
 	}
 	bool readonly() {
 		validate_hwnd();
@@ -645,6 +650,14 @@ public:
 	{
 		set_framework_dpi_virtualization(false);
 	};
+	InputDialog(HWND ownerWindow = NULL, std::wstring title = L"Input", int width = 320, int height = 145) :
+		Window(title, (int)(width* w32oop::ui::internal::system_dpi_scale_factor() + 0.5f),
+			(int)(height* w32oop::ui::internal::system_dpi_scale_factor() + 0.5f), 0, 0, WS_POPUP | WS_SYSMENU | WS_SIZEBOX | WS_CLIPCHILDREN),
+		m_scale((float)w32oop::ui::internal::system_dpi_scale_factor()),
+		_logical_width(width), _logical_height(height), parent_window(ownerWindow)
+	{
+		set_framework_dpi_virtualization(false);
+	};
 	InputDialog(InputDialog&& other) noexcept : w32oop_ui_window_move_ctor_super(Window, other),
 		w32oop_ui_window_move_ctor_object(prompt, other),
 		w32oop_ui_window_move_ctor_object(editBox, other),
@@ -656,7 +669,7 @@ public:
 		w32oop_ui_window_move_value(_logical_width, other);
 		w32oop_ui_window_move_value(_logical_height, other);
 		w32oop_ui_window_move_value(parent_window, other);
-		w32oop_ui_window_move_value(promptFont, other);
+		w32oop_ui_window_move_object(promptFont, other);
 		w32oop_ui_window_move_value(rejected, other);
 		w32oop_ui_window_move_value(isActive, other);
 		w32oop_ui_window_move_value(isCreated, other);
@@ -674,7 +687,7 @@ public:
 		w32oop_ui_window_move_value(_logical_width, other);
 		w32oop_ui_window_move_value(_logical_height, other);
 		w32oop_ui_window_move_value(parent_window, other);
-		w32oop_ui_window_move_value(promptFont, other);
+		w32oop_ui_window_move_object(promptFont, other);
 		w32oop_ui_window_move_value(rejected, other);
 		w32oop_ui_window_move_value(isActive, other);
 		w32oop_ui_window_move_value(isCreated, other);
@@ -694,10 +707,11 @@ protected:
 	int _logical_width = 320, _logical_height = 145;
 	HWND parent_window;
 	HWND new_window() override;
+	void register_class_if_needed() override;
 	std::wstring prompt;
 	Edit editBox;
 	Button accept, reject;
-	HFONT promptFont = NULL;
+	w32FontHandle promptFont;
 	bool rejected = true;
 	bool isActive = true;
 	bool isCreated = false;

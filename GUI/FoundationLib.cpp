@@ -29,11 +29,6 @@ HWND w32oop::ui::foundation::ChildControlWindow::new_window() {
 	return w;
 }
 
-LRESULT w32oop::ui::BaseSystemWindow::default_handler(HWND hwnd2, UINT message, WPARAM wParam, LPARAM lParam) {
-	if (!old_wndproc) return Window::default_handler(hwnd2, message, wParam, lParam);
-	return CallWindowProcW(old_wndproc, hwnd2, message, wParam, lParam);
-}
-
 void w32oop::ui::foundation::StaticEx::onSize(EventData&) {
 	RECT rc = client_rect();
 	_MyStatic.resize(0, 0, rc.right - rc.left, rc.bottom - rc.top);
@@ -83,6 +78,31 @@ HWND w32oop::ui::foundation::InputDialog::new_window() {
 	if (!w) return NULL;
 	SetWindowLongPtrW(w, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 	return w;
+}
+
+void w32oop::ui::foundation::InputDialog::register_class_if_needed() {
+	if (!class_registered()) {
+		wstring class_name = get_class_name();
+
+		WNDCLASSEXW wcex{};
+		wcex.cbSize = sizeof(WNDCLASSEXW);
+		wcex.style = CS_HREDRAW | CS_VREDRAW | CS_DROPSHADOW;
+		wcex.lpfnWndProc = StaticWndProc;
+		wcex.cbClsExtra = 0;
+		wcex.cbWndExtra = 0;
+		wcex.hInstance = GetModuleHandleW(NULL);
+		wcex.hIcon = wcex.hIconSm = get_window_icon();
+		wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+		wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+		wcex.lpszMenuName = NULL;
+		wcex.lpszClassName = class_name.c_str();
+
+		if (!RegisterClassExW(&wcex)) {
+			if (GetLastError() != ERROR_CLASS_ALREADY_EXISTS) {
+				throw window_class_registration_failure_exception();
+			}
+		}
+	}
 }
 
 void w32oop::ui::foundation::InputDialog::onCreated() {
@@ -137,8 +157,7 @@ void w32oop::ui::foundation::InputDialog::onCreated() {
 }
 
 void w32oop::ui::foundation::InputDialog::onDestroy() {
-	// 在这里销毁 GDI 对象。
-	DeleteObject(promptFont);
+	// promptFont 由 w32FontHandle 自动释放。
 	isCreated = false;
 }
 
@@ -168,7 +187,7 @@ void w32oop::ui::foundation::InputDialog::paint(EventData& ev) {
 	}
 	{
 		// 保存原始DC状态
-		HFONT oldFont = (HFONT)SelectObject(dc, promptFont);
+		HFONT oldFont = (HFONT)SelectObject(dc, promptFont.get());
 		COLORREF oldColor = SetTextColor(dc, RGB(0, 0, 0));  // 黑色文本
 		int oldBkMode = SetBkMode(dc, TRANSPARENT);          // 透明背景
 
@@ -232,8 +251,7 @@ void w32oop::ui::foundation::InputDialog::onDpiChanged(EventData& ev) {
 	if (new_scale == m_scale) return;
 	m_scale = new_scale;
 
-	// 自绘字体大小随新缩放系数重建（onDestroy 里统一销毁）
-	DeleteObject(promptFont);
+	// 自绘字体大小随新缩放系数重建（赋值会自动释放旧字体）
 	promptFont = CreateFontW(s(20), 0, 0, 0,
 		FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
 		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,

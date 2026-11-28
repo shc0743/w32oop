@@ -188,8 +188,11 @@ protected:
 	// 虚函数：判断窗口类是否已注册（控件类可覆盖此方法）
 	virtual bool class_registered() const {
 		WNDCLASSEXW wc{};
-		return (bool)GetClassInfoExW(GetModuleHandleW(NULL), class_name.c_str(), &wc);
+		return (bool)GetClassInfoExW(GetModuleHandleW(NULL), class_name_.c_str(), &wc);
 	}
+
+protected:
+	WNDPROC old_wndproc = NULL;
 
 protected:
 	Font window_font;
@@ -215,7 +218,7 @@ public:
 	}
 
 private:
-	std::wstring class_name;
+	std::wstring class_name_;
 	virtual void register_class_if_needed();
 	DWORD _owner = 0;
 
@@ -513,6 +516,10 @@ public:
 
 protected:
 	virtual void onCreated();
+	// 注意：如果窗口是在派生类析构函数中被销毁的（这是最常见的情况），
+	// 此时派生类已经析构、虚函数会退化到 Window，因此这里的派生类重写
+	// 不会被执行。请优先用 RAII（如 w32FontHandle / w32BrushHandle）持有
+	// GDI 等资源，而不要依赖 onDestroy 来释放它们。
 	virtual void onDestroy();
 
 private:

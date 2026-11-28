@@ -153,8 +153,39 @@ void Window::set_accelerator(HACCEL accelerator) {
 	set_global_option(GlobalOptions::Option_HACCEL, (long long)(void *)accelerator);
 }
 
+// 窗口类注册时需要一个背景画刷，并且该画刷必须在窗口类存续期间保持有效。
+// 注册只发生一次，但画刷不能被直接丢弃，否则每个自定义窗口类都会泄漏一个
+// GDI 画刷。这里用一个进程级注册表持有它们，退出时统一释放。
+namespace {
+	struct ClassBackgroundBrushes {
+		SRWLOCK lock = SRWLOCK_INIT;
+		std::map<std::wstring, w32BrushHandle> brushes;
+	};
+	ClassBackgroundBrushes& class_background_brushes() {
+		static ClassBackgroundBrushes registry;
+		return registry;
+	}
+}
+
 void Window::register_class_if_needed() {
 	if (!class_registered()) {
+		auto& registry = class_background_brushes();
+		HBRUSH background = NULL;
+		// 在加锁前调用虚函数，避免用户重写实现里再次创建窗口时死锁。
+		const COLORREF backgroundColor = get_window_background_color();
+		{
+			SRWLockGuard guard(&registry.lock, SRWLockGuard::Exclusive);
+			auto it = registry.brushes.find(class_name_);
+			if (it != registry.brushes.end()) {
+				background = it->second.get();
+			}
+			else {
+				background = CreateSolidBrush(backgroundColor);
+				if (!background) throw window_class_registration_failure_exception();
+				registry.brushes.emplace(class_name_, w32BrushHandle(background));
+			}
+		}
+
 		WNDCLASSEXW wcex{};
 		wcex.cbSize = sizeof(WNDCLASSEXW);
 
@@ -166,12 +197,17 @@ void Window::register_class_if_needed() {
 		wcex.hIcon = wcex.hIconSm = get_window_icon();
 		wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
 		//wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-		wcex.hbrBackground = CreateSolidBrush(get_window_background_color());
+		wcex.hbrBackground = background;
 		wcex.lpszMenuName = NULL;
-		wcex.lpszClassName = class_name.c_str();
+		wcex.lpszClassName = class_name_.c_str();
 
 		if (!RegisterClassExW(&wcex)) {
-			throw window_class_registration_failure_exception();
+			// 另一个线程可能刚好注册了同一个类，此时继续使用已注册的类即可。
+			if (GetLastError() != ERROR_CLASS_ALREADY_EXISTS) {
+				SRWLockGuard guard(&registry.lock, SRWLockGuard::Exclusive);
+				registry.brushes.erase(class_name_);
+				throw window_class_registration_failure_exception();
+			}
 		}
 	}
 }
@@ -180,7 +216,7 @@ HWND Window::new_window() {
 	// 构造器/调用方传入的是逻辑尺寸与坐标，创建时按DPI缩放系数换算为物理像素。
 	return CreateWindowExW(
 		setup_info->styleEx,
-		class_name.c_str(),
+		class_name_.c_str(),
 		setup_info->title.c_str(),
 		setup_info->style,
 		scaled(setup_info->x), scaled(setup_info->y),
@@ -248,12 +284,13 @@ Window::Window() {
 }
 
 #define WINDOW_PROCESS_OBJECT_MEMBERS(use) \
-use(class_name, other), \
+use(class_name_, other), \
 use(__message_router, other), \
 use(__invokeLaterList, other)
 
 #define WINDOW_PROCESS_VALUE_MEMBERS() \
 w32oop_ui_window_move_value(hwnd, other); \
+w32oop_ui_window_move_value(old_wndproc, other); \
 w32oop_ui_window_move_value(_owner, other); \
 w32oop_ui_window_move_value(setup_info, other); \
 w32oop_ui_window_move_value(_created, other); \
@@ -301,17 +338,17 @@ void Window::create() {
 	if (_created) throw window_already_initialized_exception();
 	if (!setup_info) throw window_illegal_state_exception();
 	transfer_ownership();
-	class_name = get_class_name();
+	class_name_ = get_class_name();
 	register_class_if_needed();
 	if (get_global_option(Option_DebugMode)) {
 		OutputDebugStringW(std::format(L"[w32oop::ui::Window]: Creating window `{}` with style `{}` and title `{}`",
-			class_name, int(setup_info->style), setup_info->title).c_str());
+			class_name_, int(setup_info->style), setup_info->title).c_str());
 	}
 	hwnd = new_window();
 	if (!hwnd) {
 		if (get_global_option(Option_DebugMode)) {
 			OutputDebugStringW(std::format(L"[w32oop::ui::Window]: Cannot create window!! {} where CLASS_NAME = {}",
-				GetLastError(), class_name).c_str());
+				GetLastError(), class_name_).c_str());
 		}
 		throw window_creation_failure_exception();
 	}
@@ -344,7 +381,7 @@ void Window::create() {
 		DestroyWindow(hwnd);
 		hwnd = nullptr;
 		if (get_global_option(Option_DebugMode)) {
-			OutputDebugStringA(std::format("[w32oop::ui::Window]: Cannot create window: %s\n", exc.what()).c_str());
+			OutputDebugStringA(std::format("[w32oop::ui::Window]: Cannot create window: {}\n", exc.what()).c_str());
 		}
 		throw;
 	}
@@ -614,6 +651,9 @@ LRESULT Window::StaticWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	if (pThis) {
 		auto result = pThis->_MyWndProc(msg, wParam, lParam);
 		pThis->_RunScheduledInvokeLaterTask(msg, wParam, lParam);
+		if (msg == WM_NCDESTROY) {
+			pThis->hwnd = nullptr;
+		}
 		return result;
 	}
 	else {
@@ -756,6 +796,9 @@ LRESULT Window::dispatchEvent(EventData data) {
 }
 
 LRESULT Window::default_handler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+	// 对于被子类化的系统控件（Edit/Button/...），必须把消息交回原始窗口过程，
+	// 否则控件自身的清理逻辑（例如 EDIT 在销毁时释放内部 GDI 对象）不会执行。
+	if (old_wndproc) return ::CallWindowProcW(old_wndproc, hwnd, message, wParam, lParam);
 	return ::DefWindowProcW(hwnd, message, wParam, lParam);
 }
 
@@ -1038,7 +1081,7 @@ LRESULT Window::destroy_handler_internal(WPARAM wParam, LPARAM lParam) {
 		// 确保正确退出
 		PostQuitMessage(0);
 	}
-	auto result = DefWindowProc(hwnd, WM_DESTROY, wParam, lParam);
+	auto result = default_handler(hwnd, WM_DESTROY, wParam, lParam);
 	// 必须清理钩子
 	remove_all_hot_key_on_window();
 	// 清理 managed
@@ -1061,7 +1104,6 @@ LRESULT Window::destroy_handler_internal(WPARAM wParam, LPARAM lParam) {
 		// 当前线程的所有窗口都已经关闭
 		if (should_quit) PostQuitMessage(0);
 	}
-	hwnd = nullptr;
 	return result;
 }
 
